@@ -95,7 +95,8 @@ anything that shows on screen it checks that the code is reached, and you look a
 ## Look at what you made
 
 If the change shows anywhere on screen, you have to see it before you call it ready. Nobody else will until
-they press Try It, and what compiles is often not what was meant.
+they press Try It, and what compiles is often not what was meant. Being sent back for something a picture would
+have shown is the failure to avoid.
 
 ```sh
 tiri change look "tiri term --cmd 'printf \"hello\\n\"'; sleep 1"
@@ -105,9 +106,23 @@ tiri change look "tiri term --cmd 'printf \"hello\\n\"'; sleep 1"
 That starts the same invisible copy a check uses, built from your edits, runs your commands against it with
 `tiri` on the PATH, and has the copy draw its own window to a PNG. Read the picture. Your commands put the
 window in the state worth seeing: open a file, a page or a terminal, print what the feature needs to show,
-run a command by its id with `tiri run`. Then compare the picture with what was asked, part by part: is every
-part there, in the right place, readable, and is anything else covered or missing that was there before?
-Fix what's off and look again. Say in your last message what you saw, and what you couldn't get on screen.
+run a command by its id with `tiri run`.
+
+- **Take a before picture first,** of the same place, before you edit. It's what you compare against.
+- **Use real material.** A real file from this repository, a real page, a real conversation file (`tiri
+  conversations` lists them, and yours is among them). A sample you made up leaves out exactly what breaks:
+  markdown marks, long lines, two hundred lines of output, a name too long for its tab.
+- **Show more than fits.** Long enough to scroll, in a pane narrow enough to wrap. The easy case always looks fine.
+- **Go down the list of what was asked,** one item at a time, against the picture. Is it there, in the right
+  place, readable as the person would want to read it, with nothing raw or half done?
+- **Then look for what you broke.** Everything in the before picture should still be there: nothing covered,
+  cut off or moved that wasn't asked to move. Where someone types counts most.
+- **A terminal you cover or resize needs a program in it.** No agent runs in the invisible copy, so stand one in
+  with something that fills the screen and redraws, such as `tiri term --cmd 'less CHANGING.md'`, and check it
+  still draws whole at its new size.
+- **Fix what's off and look again.** Stop when a picture of the hard case is right, not at the first clean one.
+
+Say in your last message what you saw for each thing asked, and what you couldn't get on screen.
 
 ## Someone else's change
 

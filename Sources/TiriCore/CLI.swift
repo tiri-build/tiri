@@ -1555,7 +1555,9 @@ public enum AgentGuide {
     `CHANGING.md` in the source says how the code is laid out and what's off limits. Write a check for
     every change: a change without one is marked as needing a look at updates, and can't be repaired by itself.
     If the change shows anywhere on screen, look at it before you call it ready: `tiri change look` hands you a
-    picture of the window of a copy built from your edits. Read the picture, fix what's off, and look again.
+    picture of the window of a copy built from your edits. Take one before you edit too. Use real material, go
+    through what was asked item by item against the picture, fix what's off and look again, until nobody would
+    need to send you back. `CHANGING.md` says how.
     Open each file you edit with `tiri open <file>`, so they can watch. It never takes them away from what they're doing.
     You can build a copy but not switch to one. They press Try It on the card on your tab, and you
     keep running through the switch, in the Tiri you just made. Don't ask them to run anything.

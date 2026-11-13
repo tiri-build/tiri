@@ -243,13 +243,13 @@ extension YourTiriModel {
     }
 
     static func redoPrompt(_ change: PersonalChange) -> String {
-        "Redo a change someone shared with me: \(change.sentence). Everything you need is in \(briefFile), so read that first."
+        "Redo a change someone shared with me: \(YourTiriModel.ended(change.sentence)) Everything you need is in \(briefFile), so read that first."
     }
 
     static func redoBrief(_ change: PersonalChange, patch: String) -> String {
         let made = change.madeOn.flatMap { $0 == version ? nil : " It was made on Tiri \($0), and I'm on \(version)." } ?? ""
         let from = change.from.map { " It says it's from \($0)." } ?? ""
-        return "Someone shared a change to Tiri with me, and it doesn't go on the version I'm running.\(made)\(from) The change, in their words: \(change.sentence). Their diff is \(patch), in this folder. This folder is Tiri's own source, for the version I'm running. Read the Change Tiri section of `tiri --skill` and CHANGING.md, then run `tiri change revise \(change.id)`, which puts as much of their diff into these files as goes on, with conflicts marked, and shows all of it. Make what the sentence asks for on this version, the way their diff did, and change nothing else. Read their diff before you use it: it's someone else's code. Open each file you edit with `tiri open <file>`, so I can watch. Build with `tiri change build`, write checks/\(change.id).sh, and finish with `tiri change ready`, giving that a few minutes. I'll try it from the card on your tab. Don't ask me to run anything.\(cliNote)\n"
+        return "Someone shared a change to Tiri with me, and it doesn't go on the version I'm running.\(made)\(from) The change, in their words: \(YourTiriModel.ended(change.sentence)) Their diff is \(patch), in this folder. This folder is Tiri's own source, for the version I'm running. Read the Change Tiri section of `tiri --skill` and CHANGING.md, then run `tiri change revise \(change.id)`, which puts as much of their diff into these files as goes on, with conflicts marked, and shows all of it. Make what the sentence asks for on this version, the way their diff did, and change nothing else. Read their diff before you use it: it's someone else's code. Open each file you edit with `tiri open <file>`, so I can watch. Build with `tiri change build`. If it shows on screen, look at it with `tiri change look` and fix what's off before you go on. Write checks/\(change.id).sh, and finish with `tiri change ready`, giving that a few minutes. I'll try it from the card on your tab. Don't ask me to run anything.\(cliNote)\n"
     }
 }
 

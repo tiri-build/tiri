@@ -471,14 +471,37 @@ struct ChangeMark {
 
     /// What the person sees on the tab: what they asked for. The rest is for the agent, in a file beside it.
     static func prompt(sentence: String) -> String {
-        "Change Tiri for me: \(sentence). Everything you need is in \(briefFile), so read that first."
+        "Change Tiri for me: \(ended(sentence)) Everything you need is in \(briefFile), so read that first."
+    }
+
+    /// Their sentence with one mark at its end: theirs if they typed one, a full stop if they didn't.
+    static func ended(_ sentence: String) -> String {
+        let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let last = trimmed.last else { return trimmed }
+        return ".!?。！？…".contains(last) ? trimmed : trimmed + "."
     }
 
     static func brief(sentence: String, surface: String?, hasMark: Bool) -> String {
         let pointing = surface.map { " I was pointing at: \($0)." } ?? ""
         let marked = hasMark ? " I marked the part I mean on screen, and that picture is \(markFile). Look at it." : ""
         let flag = surface.map { " --surface \(ShellQuote.quote($0))" } ?? ""
-        return "I asked: \(sentence).\(pointing)\(marked) This folder is Tiri's own source, for the version I'm running. Read the Change Tiri section of `tiri --skill` and CHANGING.md, then begin with `tiri change start \(ShellQuote.quote(sentence))\(flag)`. Open each file you edit with `tiri open <file>`, so I can watch. Build with `tiri change build`. If it shows on screen, look at it with `tiri change look` and fix what's off before you go on. Write its check, and finish with `tiri change ready`, giving that a few minutes. I'll try it from the card on your tab. Don't ask me to run anything.\(cliNote)\n"
+        // Numbered, because agents given one long paragraph did the first and last things in it and skipped the middle:
+        // the looking, which is where what was built stops matching what was asked.
+        return """
+        I asked: \(ended(sentence))\(pointing)\(marked)
+
+        This folder is Tiri's own source, for the version I'm running. Read the Change Tiri section of `tiri --skill` and CHANGING.md before anything else.\(cliNote)
+
+        1. Begin with `tiri change start \(ShellQuote.quote(sentence))\(flag)`.
+        2. List each separate thing I asked for. That list is what done means, so keep it in front of you.
+        3. Find out what Tiri already does of it. If it shows on screen, take a picture of how that part looks today with `tiri change look`. That's your before.
+        4. Make it. Open each file you edit with `tiri open <file>`, so I can watch. Build with `tiri change build`.
+        5. Look at it with `tiri change look`, on real material and not a sample you made up, and go down your list against the picture. Fix what's off and look again. Carry on until every item is right, and nothing from the before picture is hidden, cut off or gone.
+        6. Write its check, then finish with `tiri change ready`, giving that a few minutes.
+
+        I'll try it from the card on your tab, and I shouldn't have to send you back for something a look would have shown. Don't ask me to run anything. When you finish, tell me what you saw for each thing on your list, and what you couldn't get on screen.
+
+        """
     }
 
     /// Git mustn't count these as part of anyone's change.
