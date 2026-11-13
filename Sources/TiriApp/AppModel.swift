@@ -154,6 +154,8 @@ final class AppModel {
     /// Files something is waiting on, like `git commit` or Claude Code's Ctrl-G through `tiri open --wait`.
     /// Closing one hands it back, so it offers Done instead of Open as Tab.
     var waitingFor: Set<ItemID> = []
+    /// The terminal a message is being written to, in the box at its foot. See `ComposeToAgent.swift`.
+    var composingFor: ItemID?
     /// Files a `tiri://` link opened outside every workspace. See `openLink`.
     @ObservationIgnored var linkOnlyFiles: Set<String> = []
     @ObservationIgnored lazy var notebookKernels = NotebookKernels(model: self)
@@ -901,6 +903,11 @@ final class AppModel {
                 self.controller(for: peek.id)?.focus()
                 return
             }
+            // A message being written to the terminal in front keeps the keyboard.
+            if let writing = self.composingFor, writing == self.active.focused.active {
+                ComposeDrafts.shared.focusRequests += 1
+                return
+            }
             // Something in its own window doesn't take the keyboard from over there.
             if let id = self.active.focused.active, !self.detachedItems.contains(id) {
                 self.controller(for: id)?.focus()
@@ -1001,6 +1008,11 @@ final class AppModel {
             editor.codeView.dropExtraCursors()
             return true
         }
+        // A message being written: Esc puts the box away and keeps what's in it.
+        if composingFor != nil, composerHasKeyboard {
+            closeComposer()
+            return true
+        }
         // Whoever opened it, and whatever has the keyboard. Esc is for what's floating in front of
         // you, and the agent underneath only gets the next one.
         if active.peek != nil {
@@ -1029,6 +1041,7 @@ final class AppModel {
         // A Peek floating over a file you're typing in doesn't take that file's ⌘↩.
         case "promotePeek": return active.peek != nil && (peekHasKeyboard || focusedEditor == nil)
         case "promotePeekToSide", "promotePeekBelow", "promotePeekToWindow": return active.peek != nil
+        case "composeToAgent": return canComposeHere
         case "webReload": return frontWebController != nil
         case "goBack": return canGoBack
         case "goToDefinition", "findReferences", "showHover": return canAskAboutSymbols()

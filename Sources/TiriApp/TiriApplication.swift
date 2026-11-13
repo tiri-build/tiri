@@ -193,6 +193,8 @@ struct TiriMenus: Commands {
         CommandGroup(after: .textEditing) {
             item("find")
             item("findReplace")
+            Divider()
+            item("composeToAgent")
         }
         CommandMenu("Go") {
             item("quickOpen")

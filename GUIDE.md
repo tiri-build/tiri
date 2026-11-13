@@ -205,6 +205,7 @@ Agents often print paths that don't exist as written, like `/resume/index.html` 
 - **Finder:** Tiri is in **Open With** for code, text, config files, Markdown, notebooks and SVG, never for documents like Word or PDF. It never makes itself the default: Get Info → Open with → Change All does that. Any file dropped on the Dock icon opens too.
 - **It goes where it belongs.** A file opens in the workspace whose folder holds it, and Tiri switches there. A file in none of them opens in the workspace in front. `tiri open src/app.ts:12` from any terminal does the same.
 - **Links:** `tiri://file/Users/me/app/src/main.ts:12:5` opens a file at a line and column, the way `vscode://file/…` links do, so tools with an "open in editor" link can use Tiri. A link only ever shows a file: it never opens a folder, and an HTML file shows as its text instead of running.
+- **Writing to an agent:** ⌘↩ in a terminal, or **Write** in the toolbar, opens a box at its foot, to what's running there. It's a real text box, so input methods and dictation work and Return is a new line. A pasted picture, a copied file or a long paste goes along with what you write and shows small above it, with an × to take it out; click a long paste to see all of it, or put it into the message to change it. The box is only as tall as what you've typed. ⌘↩ or **Send** puts it all in the agent's input and presses Return. Esc puts the box away and keeps what's in it, through a restart too. If the agent is asking you something, nothing is sent until you've answered: a Return would have answered that instead. It's **Write to Agent** in the Edit menu and the palette. Slash commands and history are the terminal's own, so type those there.
 - **When a program asks for an editor:** Tiri's terminals set `EDITOR` to `tiri-edit`, so `git commit`, Claude Code's Ctrl-G and anything else that asks opens the file in a Peek over the session. Type, then **Done** (⌘↩) or Esc hands it back, saved. Until then it stays, through clicks elsewhere and workspace switches, and anything else shown meanwhile opens beneath it. If an agent's own command asks while you're somewhere else, it doesn't take your keyboard: its tab says it needs you. If Tiri quits first, what you typed comes back as a tab and the program is told it didn't get it. Outside Tiri, `tiri open --wait` does the same in a tab. If your shell sets `EDITOR`, yours is used. **Edit in Tiri** in Settings → Terminal turns this off.
 - **Dev servers:** `LAUNCH_EDITOR` and `REACT_EDITOR` name `tiri-open`, so "open in editor" on a Vite, Nuxt or Next error page opens the file in Tiri, at its line when the tool says which (Next doesn't).
 
@@ -492,6 +493,7 @@ Shortcuts follow Cursor. You can change any of them in Settings, or by asking yo
 | New window | ⇧⌘N |
 | Next terminal needing attention | ⌘⇧U |
 | Past conversations | ⇧⌘H |
+| Write to the agent in this terminal / send | ⌘↩ / ⌘↩ |
 | Quote in agent / add files | ⌘L / ⇧⌘L |
 | Add review comment / send all | ⌥⌘L / ⌥⇧⌘L |
 | Find in the current item | ⌘F |

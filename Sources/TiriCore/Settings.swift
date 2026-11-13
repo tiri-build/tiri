@@ -614,6 +614,8 @@ public enum Keymap {
             // A Peek keeps ⌘↩ when it's there. Otherwise, in a file, it's a new line.
             ("cmd+enter", "promotePeek"),
             ("cmd+enter", "insertLineBelow"),
+            // In a terminal with nothing floating over it, it starts a message to what's running there.
+            ("cmd+enter", "composeToAgent"),
             ("cmd+shift+enter", "insertLineAbove"),
             ("cmd+/", "toggleLineComment"),
             ("cmd+]", "indentLines"),

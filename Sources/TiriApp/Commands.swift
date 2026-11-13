@@ -134,6 +134,7 @@ extension AppModel {
             AppCommand(id: "terminalDeleteToLineStart", title: "Delete to Start of Line", category: "Terminal") { $0.frontTerminal?.sendDeleteToLineStart() },
             AppCommand(id: "addToAgent", title: "Add to Agent", category: "Agents") { $0.addFrontToAgent() },
             AppCommand(id: "attachToAgent", title: "Add Files or Images to Agent…", category: "Agents") { $0.chooseFilesForAgent() },
+            AppCommand(id: "composeToAgent", title: "Write to Agent", category: "Agents", keywords: ["compose", "message", "draft", "prompt"]) { $0.composeToAgent() },
             AppCommand(id: "addReviewComment", title: "Review: Add Comment", category: "Agents") { $0.beginReviewComment() },
             AppCommand(id: "sendReview", title: "Review: Send Comments to Agent", category: "Agents") { $0.sendReview() },
             AppCommand(id: "conversations", title: "Past Conversations…", category: "Agents") { $0.openConversationPicker() },

@@ -76,7 +76,7 @@ import Testing
         #expect(ShortcutIndex.holders(of: "cmd+b", except: "toggleSidebar", in: bindings).isEmpty)
         #expect(ShortcutIndex.holders(of: "cmd+j", except: "goBack", in: bindings).isEmpty)
         // Two commands can share a key by default, and both would lose it.
-        #expect(Set(ShortcutIndex.holders(of: "cmd+enter", except: "goBack", in: bindings)) == ["promotePeek", "insertLineBelow"])
+        #expect(Set(ShortcutIndex.holders(of: "cmd+enter", except: "goBack", in: bindings)) == ["promotePeek", "insertLineBelow", "composeToAgent"])
     }
 
     @Test func changedCountsAnUnboundDefault() {

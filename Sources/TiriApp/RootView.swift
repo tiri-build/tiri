@@ -111,6 +111,11 @@ struct MainToolbar: ToolbarContent {
             }
             .help("Add files or images to your agent (⇧⌘L)")
 
+            Button { model.composeToAgent() } label: {
+                Label("Write", systemImage: "square.and.pencil")
+            }
+            .help("Write to the agent in this terminal (⌘↩)")
+
             Button { model.splitActive(.right) } label: {
                 Label("Split Right", systemImage: "rectangle.split.2x1")
             }
@@ -370,6 +375,10 @@ struct ItemContentView: View {
                     .padding(.trailing, 14)
             }
             YourTiriCards(item: item.id)
+            if model.composingFor == item.id {
+                AgentComposer(terminal: item.id)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            }
         }
     }
 }
