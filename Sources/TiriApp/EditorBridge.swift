@@ -506,12 +506,16 @@ extension AppModel {
     }
 
     /// Images go in as a paste, which agents take as the image. Other files become mentions.
-    func insert(_ paths: [String], into terminal: TerminalController, agent: AgentReference.Agent) {
+    func insert(_ paths: [String], into terminal: TerminalController, agent: AgentReference.Agent, then done: (() -> Void)? = nil) {
         let paths = paths.map(imageAgentsTake)
         if let destination = terminal.remoteDestination, paths.contains(where: { remote.existingConnection(destination)?.map.contains($0) != true || !$0.hasPrefix("/") }) {
-            remote.serverPaths(for: paths, on: destination) { [weak self] mapped in self?.insertOnServer(mapped, into: terminal, agent: agent) }
+            remote.serverPaths(for: paths, on: destination) { [weak self] mapped in
+                self?.insertOnServer(mapped, into: terminal, agent: agent)
+                done?()
+            }
             return
         }
+        defer { done?() }
         for path in paths {
             if AgentReference.isImage(path: path) {
                 terminal.send(text: AgentReference.bracketedPaste(path) + " ")

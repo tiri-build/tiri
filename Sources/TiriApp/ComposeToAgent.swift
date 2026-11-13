@@ -18,6 +18,8 @@ import TiriCore
     var held: [ItemID: String] = [:]
     /// Counts up to hand the box the keyboard.
     var focusRequests = 0
+    /// The attached file being looked at, if one is.
+    var lookingAt: String?
 }
 
 private extension Array {
@@ -92,14 +94,28 @@ extension AppModel {
 
     var composerHasKeyboard: Bool { (NSApp.keyWindow ?? window)?.firstResponder is ComposerTextView }
 
+    /// An input method is partway through a word in the box: Esc and Return are its own just now.
+    var composerIsMidWord: Bool { ((NSApp.keyWindow ?? window)?.firstResponder as? ComposerTextView)?.hasMarkedText() == true }
+
+    /// The agent is asking something, so the box steps aside and what it asked can be seen and answered.
+    func composerYields(_ terminal: ItemID) -> Bool { runtimes[terminal]?.status == .needsInput }
+
     /// For ⌘↩, which a terminal otherwise keeps: in a terminal with nothing floating over it, or in the box.
     var canComposeHere: Bool {
         if composingFor != nil, composerHasKeyboard { return true }
-        guard active.peek == nil, (NSApp.keyWindow ?? window)?.firstResponder is TiriTerminalView else { return false }
-        return frontTerminalItem != nil
+        guard (NSApp.keyWindow ?? window)?.firstResponder is TiriTerminalView else { return false }
+        if windowOfItsOwn != nil { return true }
+        return active.peek == nil && frontTerminalItem != nil
+    }
+
+    /// The terminal the keys are in when it's in a window of its own.
+    private var windowOfItsOwn: ItemID? {
+        guard let key = NSApp.keyWindow, let id = detachedItem(of: key), let item = anyItem(id), case .terminal = item.content else { return nil }
+        return id
     }
 
     private var frontTerminalItem: ItemID? {
+        if let own = windowOfItsOwn { return own }
         guard let id = active.focused.active, let item = active.item(id), case .terminal = item.content else { return nil }
         return id
     }
@@ -142,8 +158,14 @@ extension AppModel {
     /// Esc: the box goes, what's in it stays, and the keys are the terminal's again.
     func closeComposer() {
         guard let terminal = composingFor else { return }
+        // Esc with a picture up puts the picture away first.
+        if ComposeDrafts.shared.lookingAt != nil {
+            ComposeDrafts.shared.lookingAt = nil
+            return
+        }
         composingFor = nil
-        if anyItem(terminal) != nil { focusItem(terminal) }
+        guard anyItem(terminal) != nil else { return }
+        if detachedItems.contains(terminal) { existingController(for: terminal)?.focus() } else { focusItem(terminal) }
     }
 
     func attachToDraft(_ paths: [String], for terminal: ItemID) {
@@ -186,19 +208,68 @@ extension AppModel {
             ComposeDrafts.shared.held[terminal] = String(localized: "\(composeRecipient(terminal)) is asking something first")
             return
         }
-        for file in attached {
-            target.send(text: AgentReference.bracketedPaste(imageAgentsTake(file)) + " ")
+        // The way the paperclip adds them: a picture as a paste, another file as a mention, named as the server names it.
+        // The words follow the files, which for a server may first have to be sent over.
+        let rest = {
+            // Each long paste as a paste of its own, which is how an agent folds it up on its side too.
+            for text in pasted { target.send(text: AgentReference.bracketedPaste(text) + " ") }
+            if !words.isEmpty { target.send(text: AgentReference.bracketedPaste(words)) }
+            // A moment for the agent to take the paste in, or the Return reads as part of it.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { target.send(text: "\r") }
         }
-        // Each long paste as a paste of its own, which is how an agent folds it up on its side too.
-        for text in pasted { target.send(text: AgentReference.bracketedPaste(text) + " ") }
-        if !words.isEmpty { target.send(text: AgentReference.bracketedPaste(words)) }
-        // A moment for the agent to take the paste in, or the Return reads as part of it.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { target.send(text: "\r") }
+        if attached.isEmpty {
+            rest()
+        } else if let agent = target.runningAgent {
+            insert(attached, into: target, agent: agent, then: rest)
+        } else {
+            target.send(text: ShellQuote.join(attached) + " ")
+            rest()
+        }
         ComposeDrafts.shared.attached[terminal] = nil
         ComposeDrafts.shared.pasted[terminal] = nil
+        ComposeDrafts.shared.lookingAt = nil
         savePastes(terminal)
         draftChanged(terminal, to: "")
         closeComposer()
+    }
+
+    /// The box has stepped aside for the agent's question, so the keys go where the answer is typed.
+    func giveKeyboardToTerminal(_ terminal: ItemID) {
+        guard composerHasKeyboard || (NSApp.keyWindow ?? window)?.firstResponder == nil else { return }
+        controller(for: terminal)?.focus()
+    }
+
+    /// A press on something attached shows it above the box, and a second press puts it away.
+    func lookAtAttached(_ path: String) {
+        ComposeDrafts.shared.lookingAt = ComposeDrafts.shared.lookingAt == path ? nil : path
+    }
+
+    /// The first lines of a file that's text, for a look at it. Nothing for one that isn't, or a folder.
+    static func startOfFile(_ path: String) -> String? {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: 4096), !data.isEmpty, !data.contains(0) else { return nil }
+        let text = String(decoding: data, as: UTF8.self)
+        return text.split(separator: "\n", maxSplits: 14, omittingEmptySubsequences: false).prefix(14).joined(separator: "\n")
+    }
+
+    /// Files and pictures dropped on the box.
+    func takeDrop(_ providers: [NSItemProvider], for terminal: ItemID) {
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier("public.file-url") {
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    guard let url, url.isFileURL else { return }
+                    Task { @MainActor in AppModel.shared.attachToDraft([url.path], for: terminal) }
+                }
+            } else if provider.canLoadObject(ofClass: NSImage.self) {
+                _ = provider.loadObject(ofClass: NSImage.self) { image, _ in
+                    guard let image = image as? NSImage else { return }
+                    Task { @MainActor in
+                        if let saved = AppModel.shared.savePastedImage(image) { AppModel.shared.attachToDraft([saved], for: terminal) }
+                    }
+                }
+            }
+        }
     }
 
     /// From a paste into the box: pictures and files on the clipboard, to go with it instead of into its words.
@@ -221,8 +292,85 @@ struct AgentComposer: View {
     @State private var textHeight: CGFloat = 18
 
     private var drafts: ComposeDrafts { .shared }
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// With the size chosen for terminals and files, so one zoom covers what you read and what you write.
+    private var size: CGFloat { CGFloat(model.settings.codeFontSizeZoomed) + 0.5 }
 
     var body: some View {
+        if model.composerYields(terminal) {
+            stoodAside
+        } else {
+            VStack(spacing: 8) {
+                if let path = drafts.lookingAt, (drafts.attached[terminal] ?? []).contains(path) {
+                    looking(at: path)
+                }
+                box
+            }
+            .animation(.easeOut(duration: 0.14), value: drafts.lookingAt)
+        }
+    }
+
+    /// What's attached, large enough to check it's the right one. A click or Esc puts it away.
+    private func looking(at path: String) -> some View {
+        let name = (path as NSString).lastPathComponent
+        return Button {
+            drafts.lookingAt = nil
+        } label: {
+            Group {
+                if AgentReference.isImage(path: path), let picture = NSImage(contentsOfFile: path) {
+                    Image(nsImage: picture)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: min(picture.size.width, 688), maxHeight: min(picture.size.height, 380))
+                } else {
+                    // Another file: where it is and how it starts, which is enough to know it's the right one.
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(verbatim: (path as NSString).abbreviatingWithTildeInPath)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        if let start = AppModel.startOfFile(path) {
+                            Text(verbatim: start)
+                                .font(.system(size: 12, design: .monospaced))
+                                .lineLimit(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .padding(10)
+                    .frame(maxWidth: 688, alignment: .leading)
+                }
+            }
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding(6)
+                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(.quaternary))
+                .shadow(color: .black.opacity(0.3), radius: 16, y: 6)
+        }
+        .buttonStyle(.plain)
+        .help("Click to put it away")
+        .accessibilityLabel(Text(verbatim: name))
+        .transition(.opacity)
+    }
+
+    /// While the agent asks: out of the way of its question, saying the message is safe.
+    private var stoodAside: some View {
+        Label("Your message is kept. Answer \(model.composeRecipient(terminal)) first.", systemImage: "square.and.pencil")
+            .font(.system(size: 11.5))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.accentColor.opacity(0.5), lineWidth: 1))
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .onAppear { model.giveKeyboardToTerminal(terminal) }
+            .transition(.opacity)
+    }
+
+    @ViewBuilder private var box: some View {
         let words = drafts.words[terminal] ?? ""
         let attached = drafts.attached[terminal] ?? []
         let pasted = drafts.pasted[terminal] ?? []
@@ -232,12 +380,12 @@ struct AgentComposer: View {
             ZStack(alignment: .topLeading) {
                 if words.isEmpty {
                     Text("Write to \(model.composeRecipient(terminal))")
-                        .font(.system(size: 13.5))
+                        .font(.system(size: size))
                         .foregroundStyle(.tertiary)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }
-                ComposerText(words: words, height: $textHeight, focusRequests: drafts.focusRequests,
+                ComposerText(words: words, height: $textHeight, focusRequests: drafts.focusRequests, size: size,
                              onChange: { model.draftChanged(terminal, to: $0) },
                              onSend: { model.sendDraft(terminal) },
                              onClose: { model.closeComposer() },
@@ -267,7 +415,10 @@ struct AgentComposer: View {
                 Button {
                     model.sendDraft(terminal)
                 } label: {
-                    Label("Send", systemImage: "paperplane.fill")
+                    HStack(spacing: 6) {
+                        Label("Send", systemImage: "paperplane.fill")
+                        Text(verbatim: "⌘↩").font(.system(size: 10.5)).opacity(0.75)
+                    }
                 }
                 .tiriGlassButton(prominent: true)
                 .controlSize(.small)
@@ -286,32 +437,25 @@ struct AgentComposer: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 14)
         .accessibilityElement(children: .contain)
+        // Dropped anywhere on the box, files and pictures go along with the message.
+        .onDrop(of: [.fileURL, .image], isTargeted: nil) { providers in
+            model.takeDrop(providers, for: terminal)
+            return true
+        }
+        .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 10)))
     }
 
     private func attachments(_ paths: [String], pasted: [String]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+        // On to a second line when there are many, so none is out of sight.
+        WrappingRow(spacing: 8) {
+            Group {
                 ForEach(Array(pasted.enumerated()), id: \.offset) { index, text in
                     PastedTextChip(text: text, remove: { model.removePaste(at: index, for: terminal) },
                                    unfold: { model.unfoldPaste(at: index, for: terminal) })
                 }
                 ForEach(paths, id: \.self) { path in
                     ZStack(alignment: .topTrailing) {
-                        Group {
-                            if AgentReference.isImage(path: path), let image = NSImage(contentsOfFile: path) {
-                                Image(nsImage: image).resizable().scaledToFill()
-                            } else {
-                                VStack(spacing: 3) {
-                                    Image(systemName: "doc").font(.system(size: 15))
-                                    Text(verbatim: (path as NSString).lastPathComponent).font(.system(size: 9)).lineLimit(1).truncationMode(.middle)
-                                }
-                                .foregroundStyle(.secondary)
-                                .padding(4)
-                            }
-                        }
-                        .frame(width: 64, height: 48)
-                        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(.quaternary))
+                        AttachedFileTile(path: path)
                         Button {
                             model.removeFromDraft(path, for: terminal)
                         } label: {
@@ -324,6 +468,72 @@ struct AgentComposer: View {
                     }
                     .help((path as NSString).lastPathComponent)
                 }
+            }
+        }
+    }
+}
+
+/// Side by side, going on to a new line when the box is full.
+private struct WrappingRow: Layout {
+    var spacing: CGFloat
+
+    private func place(_ subviews: Subviews, in width: CGFloat) -> (spots: [CGPoint], size: CGSize) {
+        var spots: [CGPoint] = []
+        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0, widest: CGFloat = 0
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width { x = 0; y += line + spacing; line = 0 }
+            spots.append(CGPoint(x: x, y: y))
+            x += size.width + spacing
+            line = max(line, size.height)
+            widest = max(widest, x - spacing)
+        }
+        return (spots, CGSize(width: widest, height: y + line))
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        place(subviews, in: proposal.width ?? .infinity).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (view, spot) in zip(subviews, place(subviews, in: bounds.width).spots) {
+            view.place(at: CGPoint(x: bounds.minX + spot.x, y: bounds.minY + spot.y), proposal: .unspecified)
+        }
+    }
+}
+
+/// A picture or file going with the message. A click shows it above the box.
+private struct AttachedFileTile: View {
+    let path: String
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let picture = AgentReference.isImage(path: path) ? NSImage(contentsOfFile: path) : nil
+        Button {
+            model.lookAtAttached(path)
+        } label: {
+            Group {
+                if let picture {
+                    Image(nsImage: picture).resizable().scaledToFill()
+                } else {
+                    VStack(spacing: 3) {
+                        Image(systemName: "doc").font(.system(size: 15))
+                        Text(verbatim: (path as NSString).lastPathComponent).font(.system(size: 9)).lineLimit(1).truncationMode(.middle)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(4)
+                }
+            }
+            .frame(width: 64, height: 48)
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(.quaternary))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(verbatim: (path as NSString).lastPathComponent))
+        .overlay {
+            if ComposeDrafts.shared.lookingAt == path {
+                RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2)
             }
         }
     }
@@ -429,15 +639,47 @@ final class ComposerTextView: NSTextView {
     }
 
     override func keyDown(with event: NSEvent) {
-        // ⌘↩, when nothing ahead of the view took it.
+        // ⌘↩, when nothing ahead of the view took it. A word an input method is partway through goes in first.
         if event.keyCode == 36, event.modifierFlags.contains(.command) {
+            if hasMarkedText() { unmarkText() }
             onSend?()
             return
         }
         super.keyDown(with: event)
     }
 
-    override func cancelOperation(_ sender: Any?) { onClose?() }
+    override func cancelOperation(_ sender: Any?) {
+        // Esc in the middle of a word is the input method's, to drop its candidates.
+        if hasMarkedText() {
+            super.cancelOperation(sender)
+            return
+        }
+        onClose?()
+    }
+
+    // A file or picture dragged onto the words goes along with them, where a text view would type its path.
+    private func droppedFiles(_ sender: NSDraggingInfo) -> [String] {
+        let board = sender.draggingPasteboard
+        let urls = (board.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+        if !urls.isEmpty { return urls.map(\.path) }
+        if board.availableType(from: [.png, .tiff]) != nil, let image = NSImage(pasteboard: board), let saved = AppModel.shared.savePastedImage(image) { return [saved] }
+        return []
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        droppedFiles(sender).isEmpty ? super.draggingEntered(sender) : .copy
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        droppedFiles(sender).isEmpty ? super.draggingUpdated(sender) : .copy
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let files = droppedFiles(sender)
+        guard !files.isEmpty else { return super.performDragOperation(sender) }
+        onPaste?(files)
+        return true
+    }
 
     override func paste(_ sender: Any?) {
         // A picture or a file goes along with the message, shown as itself.
@@ -459,6 +701,7 @@ private struct ComposerText: NSViewRepresentable {
     let words: String
     @Binding var height: CGFloat
     let focusRequests: Int
+    let size: CGFloat
     let onChange: (String) -> Void
     let onSend: () -> Void
     let onClose: () -> Void
@@ -496,8 +739,9 @@ private struct ComposerText: NSViewRepresentable {
         scroll.borderType = .noBorder
         let view = ComposerTextView()
         view.delegate = context.coordinator
-        view.font = .systemFont(ofSize: 13.5)
+        view.font = .systemFont(ofSize: size)
         view.textColor = .labelColor
+        view.registerForDraggedTypes([.fileURL, .png, .tiff])
         view.insertionPointColor = .controlAccentColor
         view.drawsBackground = false
         view.isRichText = false
@@ -525,6 +769,7 @@ private struct ComposerText: NSViewRepresentable {
         view.onClose = onClose
         view.onPaste = onPaste
         view.onLongPaste = onLongPaste
+        if view.font?.pointSize != size { view.font = .systemFont(ofSize: size) }
         if view.string != words, !view.hasMarkedText() { view.string = words }
         context.coordinator.measure(view)
         if context.coordinator.answered != focusRequests {

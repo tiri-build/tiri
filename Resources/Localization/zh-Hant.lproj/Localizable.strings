@@ -85,6 +85,8 @@
 "Add files or pictures" = "加入檔案或圖片";
 "%@ is asking something first" = "%@ 正在先問你一件事";
 "Take this out" = "移除";
+"Your message is kept. Answer %@ first." = "你的訊息還在。先回答 %@。";
+"Click to put it away" = "點一下收起";
 "this terminal" = "這個終端機";
 "Write to Agent" = "寫給代理";
 "Send (⌘↩)" = "傳送（⌘↩）";

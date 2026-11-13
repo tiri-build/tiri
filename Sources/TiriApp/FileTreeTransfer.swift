@@ -155,7 +155,7 @@ extension FileTreeController {
 }
 
 /// What a drag from another app looks like to the explorer, for a test copy, which can't be dragged onto.
-private final class TestDrag: NSObject, NSDraggingInfo {
+final class TestDrag: NSObject, NSDraggingInfo {
     let draggingPasteboard: NSPasteboard
     init(pasteboard: NSPasteboard) { draggingPasteboard = pasteboard }
     var draggingDestinationWindow: NSWindow? { nil }

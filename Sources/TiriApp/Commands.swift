@@ -1470,6 +1470,12 @@ enum ControlHandler {
 
         case "dev.drop":
             guard AppModel.isTestCopy else { throw ControlFailure("Only for a test copy.") }
+            // With the keys in the box for writing to an agent, the drop is on the box.
+            if let box = (NSApp.keyWindow ?? model.window)?.firstResponder as? ComposerTextView {
+                let drag = TestDrag(pasteboard: FileTreeController.pasteboard)
+                guard box.draggingEntered(drag) == .copy else { return .object(["result": .string("refused")]) }
+                return .object(["result": .string(box.performDragOperation(drag) ? "attached" : "refused")])
+            }
             return .object(["result": .string(model.fileTree.dropForTest(on: request.args["path"]?.stringValue.map { model.aliasedPath($0) }))])
 
         case "dev.browser":
@@ -1743,6 +1749,10 @@ enum ControlHandler {
                 guard let terminal = model.controller(for: target) as? TerminalController,
                       let cell = terminal.terminalView.cellFrameInWindow(row: row, column: col) else { throw ControlFailure("\(target) isn't a terminal on screen.") }
                 point = CGPoint(x: cell.midX, y: height - cell.midY)
+            } else if target == "at" {
+                // A spot in the window, measured from its top left as a screenshot shows it.
+                guard let x = request.args["x"]?.intValue, let y = request.args["y"]?.intValue else { throw ControlFailure("Where?") }
+                point = CGPoint(x: CGFloat(x), y: height - CGFloat(y))
             } else if target == "peek" {
                 guard let peek else { throw ControlFailure("No Peek.") }
                 point = CGPoint(x: peek.midX, y: peek.midY)
@@ -1762,18 +1772,41 @@ enum ControlHandler {
                                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)
             }
             guard let down = event(.leftMouseDown), let up = event(.leftMouseUp),
-                  let content = window.contentView, let hit = content.hitTest(content.convert(point, from: nil)) else {
+                  let content = window.contentView, let hit = content.hitTest(content.superview?.convert(point, from: nil) ?? point) else {
                 throw ControlFailure("Nothing there.")
             }
             model.handleLeftMouseDown(down)
             if hit.acceptsFirstResponder { window.makeFirstResponder(hit) }
             hit.mouseDown(with: down)
             hit.mouseUp(with: up)
-            return .object(["hit": .string(String(describing: type(of: hit)))])
+            let where_ = hit.convert(hit.bounds, to: nil)
+            return .object(["hit": .string(String(describing: type(of: hit))),
+                            "frame": .string("\(Int(where_.minX)),\(Int(height - where_.maxY)) \(Int(where_.width))x\(Int(where_.height))"),
+                            "window": .string("\(Int(window.frame.width))x\(Int(window.frame.height)) content \(Int(height))")])
+
+        case "dev-press":
+            // A SwiftUI button takes no made-up click. This does what pressing an attached file in the box does.
+            guard AppModel.isTestCopy else { throw ControlFailure("Only in a test copy.") }
+            guard let name = request.args["name"]?.stringValue, let terminal = model.composingFor,
+                  let path = (ComposeDrafts.shared.attached[terminal] ?? []).first(where: { ($0 as NSString).lastPathComponent == name }) else {
+                throw ControlFailure("No such file in the box.")
+            }
+            model.lookAtAttached(path)
+            return .object([:])
 
         case "dev-compose":
             guard Bundle.main.bundleIdentifier?.contains(".test.") == true else { throw ControlFailure("Only in a test copy.") }
-            guard let view = model.frontEditor?.codeView, let text = request.args["text"]?.stringValue else { throw ControlFailure("No file in front.") }
+            guard let text = request.args["text"]?.stringValue else { throw ControlFailure("No text.") }
+            // The box for writing to an agent, when the keys are in it: an input method's word there, or typing.
+            if let box = (NSApp.keyWindow ?? model.window)?.firstResponder as? ComposerTextView {
+                if request.args["commit"]?.boolValue == true {
+                    box.insertText(text, replacementRange: box.hasMarkedText() ? box.markedRange() : box.selectedRange())
+                } else {
+                    box.setMarkedText(text, selectedRange: NSRange(location: (text as NSString).length, length: 0), replacementRange: box.selectedRange())
+                }
+                return .object(["marked": .bool(box.hasMarkedText()), "text": .string(box.string)])
+            }
+            guard let view = model.frontEditor?.codeView else { throw ControlFailure("No file in front.") }
             if request.args["commit"]?.boolValue == true {
                 view.insertText(text, replacementRange: view.markedRange().location == NSNotFound ? NSRange(location: NSNotFound, length: 0) : view.markedRange())
             } else {

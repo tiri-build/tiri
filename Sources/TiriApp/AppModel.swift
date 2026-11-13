@@ -904,7 +904,7 @@ final class AppModel {
                 return
             }
             // A message being written to the terminal in front keeps the keyboard.
-            if let writing = self.composingFor, writing == self.active.focused.active {
+            if let writing = self.composingFor, writing == self.active.focused.active, !self.composerYields(writing) {
                 ComposeDrafts.shared.focusRequests += 1
                 return
             }
@@ -1010,6 +1010,8 @@ final class AppModel {
         }
         // A message being written: Esc puts the box away and keeps what's in it.
         if composingFor != nil, composerHasKeyboard {
+            // Partway through a word, Esc is the input method's.
+            if composerIsMidWord { return false }
             closeComposer()
             return true
         }

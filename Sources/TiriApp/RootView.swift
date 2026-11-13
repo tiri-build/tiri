@@ -375,11 +375,12 @@ struct ItemContentView: View {
                     .padding(.trailing, 14)
             }
             YourTiriCards(item: item.id)
-            if model.composingFor == item.id {
+            if model.composingFor == item.id, !model.detachedItems.contains(item.id) {
                 AgentComposer(terminal: item.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             }
         }
+        .animation(.easeOut(duration: 0.16), value: model.composingFor == item.id)
     }
 }
 
@@ -746,6 +747,12 @@ struct DetachedItemView: View {
             }
             ItemHost(itemID: itemID, group: nil, isDetached: true)
                 .background(Color(nsColor: TerminalTheme.background(dark: model.effectiveDark)))
+                .overlay(alignment: .bottom) {
+                    if model.composingFor == itemID {
+                        AgentComposer(terminal: itemID)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    }
+                }
         }
         .frame(minWidth: 420, minHeight: 280)
     }

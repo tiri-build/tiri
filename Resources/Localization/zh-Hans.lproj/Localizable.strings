@@ -85,6 +85,8 @@
 "Add files or pictures" = "添加文件或图片";
 "%@ is asking something first" = "%@ 正在先问你一件事";
 "Take this out" = "移除";
+"Your message is kept. Answer %@ first." = "你的消息还在。先回答 %@。";
+"Click to put it away" = "点击收起";
 "this terminal" = "这个终端";
 "Write to Agent" = "写给智能体";
 "Send (⌘↩)" = "发送（⌘↩）";

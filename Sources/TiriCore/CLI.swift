@@ -436,6 +436,11 @@ public enum CLIParser {
             if args.count > 2 { payload["reason"] = .string(args[2]) }
             return request("dev-blocked-link", payload)
 
+        case "dev-press":
+            // Presses a file attached in the box for writing to an agent, by its name.
+            guard !args.isEmpty else { throw UsageError("usage: tiri dev-press <name>   (test copies only)") }
+            return request("dev-press", ["name": .string(args.joined(separator: " "))])
+
         case "dev-compose":
             // What an input method does, which keys posted to a process can't: `dev-compose ni` shows
             // letters still being worked on, and `dev-compose --commit 你` settles on some.
@@ -465,9 +470,13 @@ public enum CLIParser {
             // A real click through the event queue, on the middle of an item or of the Peek: what the window's
             // monitors and hit-testing make of it. `responder` says who has the keyboard now. `--cell <row> <col>`
             // clicks one cell of a terminal, and `--cmd` holds ⌘, as on a path an agent printed.
-            let usage = UsageError("usage: tiri dev-click <item-id> [--cell <row> <col>] [--cmd] | peek | responder   (test copies only)")
+            let usage = UsageError("usage: tiri dev-click <item-id> [--cell <row> <col>] [--cmd] | at <x> <y> | peek | responder   (test copies only)")
             guard let target = args.first, !target.hasPrefix("-") else { throw usage }
             var payload: [String: JSONValue] = ["target": .string(target), "command": .bool(args.contains("--cmd"))]
+            if target == "at" {
+                guard args.count > 2, let x = Int(args[1]), let y = Int(args[2]) else { throw usage }
+                payload["x"] = .int(x); payload["y"] = .int(y)
+            }
             if let at = args.firstIndex(of: "--cell") {
                 guard args.count > at + 2, let row = Int(args[at + 1]), let col = Int(args[at + 2]) else { throw usage }
                 payload["row"] = .int(row); payload["col"] = .int(col)
