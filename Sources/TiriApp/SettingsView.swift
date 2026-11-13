@@ -162,6 +162,7 @@ extension AppModel {
         counts[.languages, default: 0] += languagesMatching(query).count
         counts[.run, default: 0] += RunLanguagesSection.matching(query).count
         if CommandLineRow.matches(query) { counts[.general, default: 0] += 1 }
+        if ToolbarButtonsRow.matches(query) { counts[.general, default: 0] += 1 }
         counts[.keyboard] = shortcutSectionsMatchingQuery.reduce(0) { $0 + $1.commands.count }
         return counts.filter { $0.value > 0 }
     }
@@ -559,6 +560,7 @@ struct SettingsSearchResults: View {
             if !settings.isEmpty { SettingRows(definitions: settings) }
         case .general:
             if !settings.isEmpty { SettingRows(definitions: settings) }
+            if ToolbarButtonsRow.matches(query) { SettingsCard { ToolbarButtonsRow() } }
             if CommandLineRow.matches(query) { SettingsCard { CommandLineRow() } }
         case .run:
             if !settings.isEmpty { SettingRows(definitions: settings) }
@@ -625,6 +627,12 @@ struct SchemaGroups: View {
         ForEach(SettingsSchema.groups(in: pane), id: \.name) { group in
             SettingsGroup(L10n.display(group.name)) {
                 SettingRows(definitions: group.settings)
+            }
+            // The toolbar's buttons are part of how Tiri looks, and are drawn as buttons, not as a row.
+            if pane == .general, group.name == "Appearance" {
+                SettingsGroup(String(localized: "Toolbar")) {
+                    SettingsCard { ToolbarButtonsRow() }
+                }
             }
         }
     }
@@ -1102,6 +1110,50 @@ struct FlowLayout: Layout {
             }
             y += row.height + spacing
         }
+    }
+}
+
+/// The toolbar's buttons, drawn as they are up there. A click on one shows or hides it.
+struct ToolbarButtonsRow: View {
+    @Environment(AppModel.self) private var model
+
+    static func matches(_ query: String) -> Bool {
+        SettingsSchema.matches(query, in: ["toolbar", "buttons", String(localized: "Toolbar")] + ToolbarButton.allCases.flatMap { [$0.title, L10n.display($0.title)] })
+    }
+
+    var body: some View {
+        let shown = model.settings.toolbarButtons
+        HStack(spacing: 6) {
+            ForEach(ToolbarButton.allCases) { button in
+                let isOn = shown.contains(button)
+                Button {
+                    let next = ToolbarButton.allCases.filter { ($0 == button) != shown.contains($0) }
+                    _ = model.setSetting("toolbar.buttons", to: .array(next.map { .string($0.rawValue) }))
+                } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: button.symbol)
+                            .font(.system(size: 15))
+                            .frame(height: 18)
+                        Text(L10n.display(button.title))
+                            .font(.system(size: 10.5))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    .foregroundStyle(isOn ? Color.primary : Color.secondary.opacity(0.55))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(isOn ? Color.accentColor.opacity(0.18) : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(isOn ? Color.accentColor.opacity(0.55) : Color.secondary.opacity(0.2)))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.display(button.title))
+                .accessibilityValue(isOn ? Text("Shown") : Text("Hidden"))
+                .accessibilityAddTraits(isOn ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 }
 

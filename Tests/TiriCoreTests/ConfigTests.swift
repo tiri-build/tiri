@@ -369,10 +369,16 @@ import Testing
             let groups = SettingsSchema.groups(in: pane)
             #expect(groups.dropFirst().allSatisfy { !$0.name.isEmpty }, "\(pane)")
         }
-        // Two lists elsewhere on the screen, three themes the Theme row shows, and Run's languages table: no rows of their own.
+        // Two lists elsewhere on the screen, three themes the Theme row shows, Run's languages table, and the toolbar's
+        // buttons, drawn as buttons: no rows of their own.
         #expect(Set(SettingsSchema.all.filter(\.shownElsewhere).map(\.key))
                 == ["terminal.presets", "terminal.resume", "theme.light", "theme.highContrastDark", "theme.highContrastLight",
-                    "run.commands", "run.off"])
+                    "run.commands", "run.off", "toolbar.buttons"])
+
+        // The toolbar's buttons keep the toolbar's order, whatever order they're named in, and a wrong name is dropped.
+        #expect(ToolbarButton.tidy(["write", "nope", "start", "write"]) == [.start, .write])
+        #expect((try? TiriSettings.parse(#"{"toolbar.buttons": ["splitDown", "addFiles"]}"#))?.toolbarButtons == [.addFiles, .splitDown])
+        #expect(TiriSettings().toolbarButtons == [.start, .conversations, .write, .splitRight])
     }
 
     /// One line under each title. Anything longer belongs in its note.

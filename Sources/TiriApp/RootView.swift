@@ -99,32 +99,38 @@ struct MainToolbar: ToolbarContent {
             .help("New terminal or agent")
             .accessibilityLabel("New Terminal or Agent")
 
-            StartToolbarButton(workspace: here.activeID)
-
-            Button { model.openConversationPicker() } label: {
-                Label("Past Conversations", systemImage: "clock.arrow.circlepath")
+            // The rest are chosen in Settings → General → Toolbar. Each has another way in: a menu, a key.
+            ForEach(model.settings.toolbarButtons) { button in
+                switch button {
+                case .start:
+                    StartToolbarButton(workspace: here.activeID)
+                case .conversations:
+                    Button { model.openConversationPicker() } label: {
+                        Label("Past Conversations", systemImage: button.symbol)
+                    }
+                    .help("Find and go back to a past conversation (⇧⌘H)")
+                case .addFiles:
+                    Button { model.chooseFilesForAgent() } label: {
+                        Label("Add Files", systemImage: button.symbol)
+                    }
+                    .help("Add files or images to your agent (⇧⌘L)")
+                case .write:
+                    Button { model.composeToAgent() } label: {
+                        Label("Write", systemImage: button.symbol)
+                    }
+                    .help("Write to the agent in this terminal (⌘↩)")
+                case .splitRight:
+                    Button { model.splitActive(.right) } label: {
+                        Label("Split Right", systemImage: button.symbol)
+                    }
+                    .help(String(localized: "Split Right (⌘\\)"))
+                case .splitDown:
+                    Button { model.splitActive(.down) } label: {
+                        Label("Split Down", systemImage: button.symbol)
+                    }
+                    .help(String(localized: "Split Down (⌘K ⌘\\)"))
+                }
             }
-            .help("Find and go back to a past conversation (⇧⌘H)")
-
-            Button { model.chooseFilesForAgent() } label: {
-                Label("Add Files", systemImage: "paperclip")
-            }
-            .help("Add files or images to your agent (⇧⌘L)")
-
-            Button { model.composeToAgent() } label: {
-                Label("Write", systemImage: "square.and.pencil")
-            }
-            .help("Write to the agent in this terminal (⌘↩)")
-
-            Button { model.splitActive(.right) } label: {
-                Label("Split Right", systemImage: "rectangle.split.2x1")
-            }
-            .help(String(localized: "Split Right (⌘\\)"))
-
-            Button { model.splitActive(.down) } label: {
-                Label("Split Down", systemImage: "rectangle.split.1x2")
-            }
-            .help(String(localized: "Split Down (⌘K ⌘\\)"))
         }
     }
 }
@@ -378,6 +384,9 @@ struct ItemContentView: View {
             if model.composingFor == item.id, !model.detachedItems.contains(item.id) {
                 AgentComposer(terminal: item.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            } else if model.invitesWriting(item.id), !model.detachedItems.contains(item.id) {
+                WritingInvitation(terminal: item.id)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
         }
         .animation(.easeOut(duration: 0.16), value: model.composingFor == item.id)

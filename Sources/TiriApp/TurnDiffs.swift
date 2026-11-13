@@ -32,7 +32,6 @@ extension AppModel {
 
     /// An agent took a prompt. What's there now is what the turn starts from.
     func turnStarted(item: ItemID, prompt: String?) {
-        hintAtComposing(after: item)
         guard settings.perTurnDiffs, let (workspace, folders) = turnRoots(for: item), let source = anyItem(item) else { return }
         // Two hooks can report one event: an agent's own, and another's it also runs.
         if let last = turns.last(where: { $0.item == item }), last.isOpen, Date().timeIntervalSince(last.started) < 3 { return }

@@ -126,6 +126,8 @@ public struct TiriSettings: Equatable, Sendable {
     public var webForceDark = true
     /// Sites that open in the person's own browser, not in Tiri. See `BrowserRules`.
     public var webOpenInBrowser: [String] = []
+    /// The toolbar's buttons beside +.
+    public var toolbarButtons: [ToolbarButton] = ToolbarButton.defaults
     /// Kinds of file that open in their own app, not in Tiri. See `AppRules`.
     public var filesOpenInDefaultApp: [String] = []
     public var documentsForceDark = true
@@ -215,6 +217,8 @@ public struct TiriSettings: Equatable, Sendable {
       // Sites that open in your own browser instead of in Tiri, like ones you're signed in to there.
       // "github.com" covers all of it, "github.com/acme" one place on it.
       "web.openInBrowser": [],
+      // The toolbar's buttons beside +: any of "start", "conversations", "addFiles", "write", "splitRight", "splitDown".
+      "toolbar.buttons": ["start", "conversations", "write", "splitRight"],
       // Kinds of file that open in their own app instead of in Tiri, like ".psd" or ".key".
       "files.openInDefaultApp": [],
       // In dark mode, show PDF and Office pages dark too. The moon button shows true colors.
@@ -426,6 +430,7 @@ public struct TiriSettings: Equatable, Sendable {
         bool("explorer.autoReveal") { settings.explorerAutoReveal = $0 }
         bool("explorer.compactFolders") { settings.explorerCompactFolders = $0 }
         bool("web.forceDark") { settings.webForceDark = $0 }
+        strings("toolbar.buttons") { settings.toolbarButtons = ToolbarButton.tidy($0) }
         strings("web.openInBrowser") { settings.webOpenInBrowser = $0.compactMap(BrowserRules.tidy) }
         strings("files.openInDefaultApp") { settings.filesOpenInDefaultApp = $0.compactMap(AppRules.tidy) }
         bool("documents.forceDark") { settings.documentsForceDark = $0 }

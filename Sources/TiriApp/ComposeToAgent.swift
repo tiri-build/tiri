@@ -18,6 +18,9 @@ import TiriCore
     var held: [ItemID: String] = [:]
     /// Counts up to hand the box the keyboard.
     var focusRequests = 0
+    /// How many times the box has been opened. After a few, nothing needs to point at it any more.
+    var opens = UserDefaults.standard.integer(forKey: "composeOpens") { didSet { UserDefaults.standard.set(opens, forKey: "composeOpens") } }
+    static let opensToKnowIt = 3
     /// The attached file being looked at, if one is.
     var lookingAt: String?
 }
@@ -27,18 +30,25 @@ private extension Array {
 }
 
 extension AppModel {
-    static let composeHintShown = "composeHintShown"
-
-    /// Once, after you've written to an agent the old way while looking at it: that there's a box for that.
-    func hintAtComposing(after item: ItemID) {
-        guard !UserDefaults.standard.bool(forKey: Self.composeHintShown), !Self.isTestCopy, isLookingAt(item), composingFor == nil else { return }
-        UserDefaults.standard.set(true, forKey: Self.composeHintShown)
-        showToast(title: String(localized: "⌘↩ opens a box for writing to \(composeRecipient(item))"),
-                  detail: String(localized: "Paste pictures and long text, type in any language, and a prompt can't take your keys."),
-                  symbol: "square.and.pencil", tint: .accentColor, actionTitle: String(localized: "Show Me"), duration: 12) { [weak self] in
-            self?.composeToAgent()
-        }
+    /// Whether to show, at the foot of this terminal, that there's a box for writing to what's in it: an agent is
+    /// there, it isn't asking anything, and the box isn't something this person already knows.
+    func invitesWriting(_ terminal: ItemID) -> Bool {
+        guard ComposeDrafts.shared.opens < ComposeDrafts.opensToKnowIt, composingFor != terminal, !composerYields(terminal),
+              let item = anyItem(terminal), case .terminal(let spec) = item.content else { return false }
+        let program = spec.command?.split(separator: " ").first.map { ($0 as NSString).lastPathComponent }
+        if let program, AgentCatalog.profile(executable: program) != nil { return true }
+        // One started by hand in a shell, once it has taken a prompt.
+        return runtimes[terminal]?.prompt != nil
     }
+
+    /// A click on that: the box, for that terminal.
+    func acceptWritingInvitation(_ terminal: ItemID) {
+        focusItem(terminal)
+        composeToAgent()
+    }
+
+    /// Its ×: not shown again.
+    func declineWritingInvitation() { ComposeDrafts.shared.opens = ComposeDrafts.opensToKnowIt }
 
     private var draftRoot: String {
         (RemoteMirror.root as NSString).deletingLastPathComponent + "/Drafts"
@@ -135,7 +145,7 @@ extension AppModel {
             ComposeDrafts.shared.pasted[terminal] = (try? Data(contentsOf: URL(fileURLWithPath: pastesPath(for: terminal))))
                 .flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
         }
-        UserDefaults.standard.set(true, forKey: Self.composeHintShown)
+        ComposeDrafts.shared.opens += 1
         ComposeDrafts.shared.held[terminal] = nil
         composingFor = terminal
         ComposeDrafts.shared.focusRequests += 1
@@ -470,6 +480,52 @@ struct AgentComposer: View {
                 }
             }
         }
+    }
+}
+
+/// At the foot of a terminal with an agent in it, until the box is known: that you can write to it here, and the key.
+struct WritingInvitation: View {
+    let terminal: ItemID
+    @Environment(AppModel.self) private var model
+    @State private var over = false
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button {
+                model.acceptWritingInvitation(terminal)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.and.pencil").font(.system(size: 11))
+                    Text("Write to \(model.composeRecipient(terminal))").font(.system(size: 11.5))
+                    Text(verbatim: "⌘↩").font(.system(size: 10.5)).foregroundStyle(.tertiary)
+                }
+                .padding(.leading, 10)
+                .padding(.trailing, over ? 4 : 10)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Open a box for a longer message, pictures and files (⌘↩)")
+            if over {
+                Button {
+                    model.declineWritingInvitation()
+                } label: {
+                    Image(systemName: "xmark").font(.system(size: 8.5, weight: .bold)).frame(width: 18, height: 18).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tertiary)
+                .padding(.trailing, 4)
+                .help("Don't show this")
+                .accessibilityLabel("Don't show this")
+            }
+        }
+        .foregroundStyle(.secondary)
+        .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
+        .overlay(Capsule().strokeBorder(.quaternary))
+        .onHover { over = $0 }
+        .padding(.trailing, 14)
+        .padding(.bottom, 10)
+        .transition(.opacity)
     }
 }
 
