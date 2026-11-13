@@ -277,6 +277,8 @@ public enum ChangeTools {
         case start(sentence: String, surface: String?)
         case build
         case check
+        /// A picture of the invisible copy's window, after these shell commands have put it in the state worth seeing.
+        case look(String?)
         case ready
         case list(json: Bool)
         case status
@@ -341,6 +343,10 @@ public enum ChangeTools {
             let result = fastBuild(in: repo)
             guard result.ok else { throw ChangeFailure(trimmedBuildOutput(result.output)) }
             return String(format: "Built in %.0f s.\n", Date().timeIntervalSince(started))
+
+        case .look(let commands):
+            try requireRepo(repo)
+            return try look(after: commands, in: repo, echo: context.echo)
 
         case .check:
             let draft = try requireDraft()
@@ -526,11 +532,45 @@ public enum ChangeTools {
         return try runChecks([script], in: repo, echo: echo).isEmpty
     }
 
+    /// Where `tiri change look` leaves its pictures: beside the source, so they're never part of a change.
+    public static var looks: URL { YourTiri.root.appendingPathComponent("looks", isDirectory: true) }
+
+    /// Starts the invisible copy built from this source, runs `commands` against it with `tiri` on the PATH, and
+    /// has the copy draw its own window to a file. An agent that changed how something looks reads that file.
+    static func look(after commands: String?, in repo: SourceRepo, echo: Bool) throws -> String {
+        try FileManager.default.createDirectory(at: looks, withIntermediateDirectories: true)
+        let picture = looks.appendingPathComponent("look-\(Int(Date().timeIntervalSince1970)).png")
+        let environment = ["TIRI_DEV_ROOT": YourTiri.testCopies.path, "TIRI_DEV_SWIFT_FLAGS": fastFlags,
+                           "TIRI_LOOK_COMMANDS": commands ?? "", "TIRI_LOOK_PICTURE": picture.path]
+        let name = testCopyName
+        let started = Tool.shell("mkdir -p \"$TIRI_DEV_ROOT\" && scripts/dev-app.sh start \(name)", in: repo.folder, environment: environment, echo: echo)
+        guard started.ok else { throw ChangeFailure("Couldn't start a test copy to look at:\n" + started.output.split(separator: "\n").suffix(8).joined(separator: "\n")) }
+        defer { Tool.shell("scripts/dev-app.sh stop \(name)", in: repo.folder, environment: environment) }
+        let run = Tool.shell("""
+        eval "$(scripts/dev-app.sh env \(name))"
+        export TIRI_SOURCE="$PWD"
+        mkdir -p "$TIRI_HOME/check" && cd "$TIRI_HOME/check"
+        status=0
+        if [ -n "$TIRI_LOOK_COMMANDS" ]; then bash -c "$TIRI_LOOK_COMMANDS" || status=$?; fi
+        sleep 1
+        tiri shot "$TIRI_LOOK_PICTURE" >/dev/null || exit 70
+        exit $status
+        """, in: repo.folder, environment: environment, echo: echo)
+        guard FileManager.default.fileExists(atPath: picture.path) else {
+            throw ChangeFailure("Couldn't take the picture:\n" + run.output.split(separator: "\n").suffix(8).joined(separator: "\n"))
+        }
+        var text = "Picture: \(picture.path)\nRead it. It's the window of a copy built from this source, after your commands.\n"
+        if !run.ok { text += "Your commands didn't all succeed:\n" + run.output.split(separator: "\n").suffix(8).joined(separator: "\n") + "\n" }
+        return text
+    }
+
+    /// Its socket goes by this name, so it can't be shared with another Tiri's checks on this Mac.
+    static var testCopyName: String { "check-" + String(abs(YourTiri.root.path.utf8.reduce(5381) { ($0 &* 33) &+ Int($1) }) % 1_000_000) }
+
     /// Which of them failed. They share one test copy, because starting one is the slow part.
     static func runChecks(_ scripts: [URL], in repo: SourceRepo, echo: Bool) throws -> [URL] {
         let environment = ["TIRI_DEV_ROOT": YourTiri.testCopies.path, "TIRI_DEV_SWIFT_FLAGS": fastFlags]
-        // Its socket goes by this name, so it can't be shared with another Tiri's checks on this Mac.
-        let name = "check-" + String(abs(YourTiri.root.path.utf8.reduce(5381) { ($0 &* 33) &+ Int($1) }) % 1_000_000)
+        let name = testCopyName
         // Not being able to start the test copy says nothing about any change.
         let started = Tool.shell("mkdir -p \"$TIRI_DEV_ROOT\" && scripts/dev-app.sh start \(name)", in: repo.folder, environment: environment, echo: echo)
         guard started.ok else { throw ChangeFailure("Couldn't start a test copy to check this with:\n" + started.output.split(separator: "\n").suffix(8).joined(separator: "\n")) }

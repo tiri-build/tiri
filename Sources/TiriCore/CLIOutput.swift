@@ -63,7 +63,7 @@ public enum CLIOutput {
             }
         case "web.console", "web.network":
             for line in response.result?.arrayValue ?? [] { say(line.stringValue ?? "") }
-        case "web.shot":
+        case "web.shot", "shot":
             say(cell(response.result?["path"]))
         case "web.text", "web.eval":
             say(response.result?.stringValue ?? "")

@@ -388,6 +388,7 @@ enum ControlHandler {
         if request.cmd == "start" { return await AppModel.shared.starter.control(request) }
         if request.cmd == "wait" { return await waitUntilClosed(request) }
         if request.cmd.hasPrefix("web.") { return await AppModel.shared.webCommand(request) }
+        if request.cmd == "shot" { return await AppModel.shared.windowShot(request) }
         if request.cmd == "conversations" { return await conversations(request) }
         if request.cmd == "remote.connect" { return await remoteConnect(request) }
         if request.cmd == "remote.forward" { return await remoteForward(request) }

@@ -26,6 +26,8 @@ These are the names people use when they ask for a change, and the file to start
 | The file tree, the explorer | `Sources/TiriApp/FileTree.swift` |
 | Changes, a diff | `Sources/TiriApp/DiffViewer.swift`, `TurnDiffs.swift` |
 | A terminal | `Sources/TiriApp/Terminal.swift` |
+| What an agent said and did, a conversation shown as a page | `Sources/TiriCore/Conversations.swift`, `Sources/TiriApp/ConversationPage.swift` |
+| A web page in a tab, picking something on it | `Sources/TiriApp/WebItem.swift`, `WebTools.swift` |
 | A Peek, the floating viewer | `Sources/TiriApp/PeekView.swift` |
 | File viewers | `Sources/TiriApp/Viewers.swift`, `RichDocuments.swift` |
 | The code editor | `Sources/TiriApp/CodeEditor.swift` |
@@ -36,6 +38,16 @@ These are the names people use when they ask for a change, and the file to start
 | Settings | `Sources/TiriApp/SettingsView.swift`, and `Sources/TiriCore/SettingsSchema.swift` for the rows |
 | The start screen, the window's layout | `Sources/TiriApp/RootView.swift` |
 | More than one window, each with its own workspace | `Sources/TiriApp/WorkspaceWindows.swift` |
+
+## Before you write anything
+
+Find out whether Tiri already does it, or half of it: `tiri commands` lists every action, `tiri --help` every
+command. Build on what's there and add only the missing part, and say which part was already there.
+
+When a change is about what an agent said, such as its prose, its tool calls or the question it ended on, read
+that from the agent's own conversation file. `Conversations.swift` already finds each agent's files and splits
+them into what was said and what was done, and `tiri conversations read <session>` shows the result. Don't
+work it out from the characters on a terminal's screen: that layout changes with every agent release.
 
 ## Off limits
 
@@ -77,8 +89,25 @@ set -e
 tiri layout | grep -q '"timer"'
 ```
 
-A window you can see is out of the question: never raise one, and never click. If the thing can only be judged by
-eye, check that the code is reached and say so.
+A window you can see is out of the question: never raise one, and never click. A check can't judge looks, so for
+anything that shows on screen it checks that the code is reached, and you look at it yourself, as below.
+
+## Look at what you made
+
+If the change shows anywhere on screen, you have to see it before you call it ready. Nobody else will until
+they press Try It, and what compiles is often not what was meant.
+
+```sh
+tiri change look "tiri term --cmd 'printf \"hello\\n\"'; sleep 1"
+# Picture: /…/your-tiri/looks/look-1794540000.png
+```
+
+That starts the same invisible copy a check uses, built from your edits, runs your commands against it with
+`tiri` on the PATH, and has the copy draw its own window to a PNG. Read the picture. Your commands put the
+window in the state worth seeing: open a file, a page or a terminal, print what the feature needs to show,
+run a command by its id with `tiri run`. Then compare the picture with what was asked, part by part: is every
+part there, in the right place, readable, and is anything else covered or missing that was there before?
+Fix what's off and look again. Say in your last message what you saw, and what you couldn't get on screen.
 
 ## Someone else's change
 

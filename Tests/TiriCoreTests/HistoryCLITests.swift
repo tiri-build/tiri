@@ -26,6 +26,21 @@ import Testing
         #expect(throws: CLIParser.UsageError.self) { try request("web", "console", "--lines", "0") }
     }
 
+    @Test func windowPictures() throws {
+        #expect(try request("shot").cmd == "shot")
+        #expect(try request("shot").args["path"] == nil)
+        #expect(try request("shot", "out.png").args["path"]?.stringValue == "/work/out.png")
+        #expect(throws: CLIParser.UsageError.self) { try request("shot", "a.png", "b.png") }
+        guard case .change(.look(let nothing)) = try CLIParser.parse(["change", "look"], environment: environment),
+              case .change(.look(let commands)) = try CLIParser.parse(["change", "look", "tiri term; sleep 1"], environment: environment) else {
+            Issue.record("tiri change look didn't parse")
+            return
+        }
+        #expect(nothing == nil)
+        #expect(commands == "tiri term; sleep 1")
+        #expect(throws: CLIParser.UsageError.self) { try CLIParser.parse(["change", "look", "a", "b"], environment: environment) }
+    }
+
     @Test func notebooks() throws {
         let run = try request("notebook", "run", "a.ipynb")
         #expect(run.cmd == "notebook.run")

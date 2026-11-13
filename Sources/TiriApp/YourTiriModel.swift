@@ -478,7 +478,7 @@ struct ChangeMark {
         let pointing = surface.map { " I was pointing at: \($0)." } ?? ""
         let marked = hasMark ? " I marked the part I mean on screen, and that picture is \(markFile). Look at it." : ""
         let flag = surface.map { " --surface \(ShellQuote.quote($0))" } ?? ""
-        return "I asked: \(sentence).\(pointing)\(marked) This folder is Tiri's own source, for the version I'm running. Read the Change Tiri section of `tiri --skill` and CHANGING.md, then begin with `tiri change start \(ShellQuote.quote(sentence))\(flag)`. Open each file you edit with `tiri open <file>`, so I can watch. Build with `tiri change build`, write its check, and finish with `tiri change ready`, giving that a few minutes. I'll try it from the card on your tab. Don't ask me to run anything.\(cliNote)\n"
+        return "I asked: \(sentence).\(pointing)\(marked) This folder is Tiri's own source, for the version I'm running. Read the Change Tiri section of `tiri --skill` and CHANGING.md, then begin with `tiri change start \(ShellQuote.quote(sentence))\(flag)`. Open each file you edit with `tiri open <file>`, so I can watch. Build with `tiri change build`. If it shows on screen, look at it with `tiri change look` and fix what's off before you go on. Write its check, and finish with `tiri change ready`, giving that a few minutes. I'll try it from the card on your tab. Don't ask me to run anything.\(cliNote)\n"
     }
 
     /// Git mustn't count these as part of anyone's change.

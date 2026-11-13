@@ -78,6 +78,12 @@ public enum CLIParser {
             return request("items")
         case "layout":
             return request("layout")
+        case "shot":
+            // A test copy's own window, as a PNG. `tiri change look` is how a change agent gets one.
+            var options = Options(args)
+            let path = options.positional()
+            try options.finish()
+            return request("shot", path.map { ["path": JSONValue.string(absolute($0, environment))] } ?? [:])
         case "commands":
             return request("commands")
         case "perf":
@@ -908,6 +914,7 @@ public enum CLIParser {
             usage: tiri change start "<sentence>" [--surface NAME]   (begins one change, in the person's words)
                    tiri change build                  (after each edit: errors, in about 5 seconds)
                    tiri change check                  (runs checks/<id>.sh against an invisible copy)
+                   tiri change look ["<commands>"]    (a picture of that invisible copy's window, after your commands)
                    tiri change ready                  (commits it and builds the copy they'll try)
                    tiri change revise [<id>]          (reopens the newest change, or one that's off)
                    tiri change drop                   (gives up the one being made)
@@ -935,6 +942,10 @@ public enum CLIParser {
                 return .change(.start(sentence: sentence, surface: surface))
             case "build": try none(); return .change(.build)
             case "check": try none(); return .change(.check)
+            case "look":
+                let commands = options.positional()
+                try options.finish()
+                return .change(.look(commands))
             case "ready": try none(); return .change(.ready)
             case "list": try none(); return .change(.list(json: json))
             case "status": try none(); return .change(.status)
@@ -1523,6 +1534,7 @@ public enum AgentGuide {
     # That prints where the source is. Work there.
     tiri change build                     # after each edit: errors, in about 5 seconds
     tiri change check                     # runs checks/<id>.sh against an invisible copy of Tiri
+    tiri change look "tiri term --cmd 'ls -la'; sleep 1"   # a picture of that copy's window after your commands. Read it
     tiri change ready                     # commits it and builds their copy, a minute or two. Give it time
     tiri change list                      # every change, on or off
     tiri change show <id>                 # what one changed
@@ -1542,6 +1554,8 @@ public enum AgentGuide {
     Keep their words as the sentence: it's what they see in Settings, and what an update repairs from.
     `CHANGING.md` in the source says how the code is laid out and what's off limits. Write a check for
     every change: a change without one is marked as needing a look at updates, and can't be repaired by itself.
+    If the change shows anywhere on screen, look at it before you call it ready: `tiri change look` hands you a
+    picture of the window of a copy built from your edits. Read the picture, fix what's off, and look again.
     Open each file you edit with `tiri open <file>`, so they can watch. It never takes them away from what they're doing.
     You can build a copy but not switch to one. They press Try It on the card on your tab, and you
     keep running through the switch, in the Tiri you just made. Don't ask them to run anything.
