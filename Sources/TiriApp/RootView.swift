@@ -407,6 +407,8 @@ struct ItemHost: NSViewRepresentable {
 
     final class Host: NSView {
         weak var installed: NSView?
+        /// Over the viewer: its notes' marks, and the box one is written in.
+        private weak var notes: NSView?
         private static var created = 0
         let serial: Int
         var ownsInstalledItem: (() -> Bool)?
@@ -428,6 +430,7 @@ struct ItemHost: NSViewRepresentable {
         @objc private func takeNewSize() {
             layer?.backgroundColor = nil
             installed?.frame = bounds
+            notes?.frame = bounds
         }
 
         required init?(coder: NSCoder) { fatalError("unused") }
@@ -452,6 +455,17 @@ struct ItemHost: NSViewRepresentable {
             Self.markNeedsDisplay(view)
         }
 
+        func install(notes layer: NSView?) {
+            if notes !== layer { notes?.removeFromSuperview() }
+            notes = layer
+            guard let layer, let installed, installed.superview === self else { return }
+            if layer.superview !== self || subviews.last !== layer {
+                layer.removeFromSuperview()
+                addSubview(layer, positioned: .above, relativeTo: installed)
+            }
+            layer.frame = installed.frame
+        }
+
         /// A view moved to a new parent keeps its old backing layers until told to redraw.
         private static func markNeedsDisplay(_ view: NSView) {
             view.needsDisplay = true
@@ -469,6 +483,7 @@ struct ItemHost: NSViewRepresentable {
             }
             layer?.backgroundColor = nil
             installed?.frame = bounds
+            notes?.frame = bounds
         }
     }
 
@@ -492,6 +507,7 @@ struct ItemHost: NSViewRepresentable {
         host.ownsInstalledItem = owns
         let changed = host.installed !== controller.view
         host.install(controller.view)
+        host.install(notes: NoteLayer.layer(for: itemID, controller: controller))
         if changed {
             controller.didAttach()
             // Web-backed viewers report when their page has finished instead.
@@ -911,6 +927,9 @@ struct FileActions: View {
             .font(.caption)
             .help("Show what changed in this file")
         }
+        if here.accessReady, let surface = model.controller(for: item.id) as? NoteSurface, surface.canPoint {
+            PointButton(item: item.id)
+        }
         if here.accessReady, let document = model.controller(for: item.id) as? ForceDarkCapable, document.supportsForceDark {
             Button {
                 model.setForceDark(!document.forceDarkActive, item: item.id)
@@ -1050,16 +1069,7 @@ struct WebHeader: View {
                 .fixedSize()
                 .help("This page has errors. Click to quote them in your agent.")
             }
-            Button { controller.startPicking() } label: {
-                Image(systemName: "scope")
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(controller.picking ? Color.accentColor : .secondary)
-            .frame(width: 24, height: 24)
-            .contentShape(Rectangle())
-            .help("Pick something on the page and quote it in your agent")
-            .accessibilityLabel("Pick on Page")
-            .accessibilityAddTraits(controller.picking ? .isSelected : [])
+            if controller.canPoint { PointButton(item: controller.itemID) }
             Button {
                 controller.toggleForceDark()
             } label: {

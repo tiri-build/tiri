@@ -14,6 +14,8 @@ import TiriCore
     var attached: [ItemID: [String]] = [:]
     /// Long text pasted in, each kept whole and shown small, as a picture is.
     var pasted: [ItemID: [String]] = [:]
+    /// Terminals whose next message leaves the waiting notes behind.
+    var withoutNotes: Set<ItemID> = []
     /// Why it wasn't sent, said in the box itself.
     var held: [ItemID: String] = [:]
     /// Counts up to hand the box the keyboard.
@@ -212,8 +214,10 @@ extension AppModel {
         let words = (ComposeDrafts.shared.words[terminal] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let attached = ComposeDrafts.shared.attached[terminal] ?? []
         let pasted = ComposeDrafts.shared.pasted[terminal] ?? []
-        guard !words.isEmpty || !attached.isEmpty || !pasted.isEmpty else { return }
         guard let target = existingController(for: terminal) as? TerminalController else { return }
+        // Notes waiting in this workspace go with the message, under the words, unless they were left out.
+        let notes = ComposeDrafts.shared.withoutNotes.contains(terminal) ? nil : notesMessage(for: target)
+        guard !words.isEmpty || !attached.isEmpty || !pasted.isEmpty || notes != nil else { return }
         if runtimes[terminal]?.status == .needsInput {
             ComposeDrafts.shared.held[terminal] = String(localized: "\(composeRecipient(terminal)) is asking something first")
             return
@@ -223,18 +227,23 @@ extension AppModel {
         let rest = {
             // Each long paste as a paste of its own, which is how an agent folds it up on its side too.
             for text in pasted { target.send(text: AgentReference.bracketedPaste(text) + " ") }
-            if !words.isEmpty { target.send(text: AgentReference.bracketedPaste(words)) }
+            let written = [words, notes?.parts.text.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""].filter { !$0.isEmpty }.joined(separator: "\n\n")
+            if !written.isEmpty { target.send(text: AgentReference.bracketedPaste(written)) }
             // A moment for the agent to take the paste in, or the Return reads as part of it.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { target.send(text: "\r") }
         }
-        if attached.isEmpty {
+        // A note's picture goes the way an attached picture does, so it reaches an agent on a server too.
+        let files = attached + (notes?.parts.pictures ?? []).filter { FileManager.default.fileExists(atPath: $0) }
+        if files.isEmpty {
             rest()
         } else if let agent = target.runningAgent {
-            insert(attached, into: target, agent: agent, then: rest)
+            insert(files, into: target, agent: agent, then: rest)
         } else {
-            target.send(text: ShellQuote.join(attached) + " ")
+            if !attached.isEmpty { target.send(text: ShellQuote.join(attached) + " ") }
             rest()
         }
+        if let notes { notesWereSent(notes.ids) }
+        ComposeDrafts.shared.withoutNotes.remove(terminal)
         ComposeDrafts.shared.attached[terminal] = nil
         ComposeDrafts.shared.pasted[terminal] = nil
         ComposeDrafts.shared.lookingAt = nil
@@ -386,7 +395,7 @@ struct AgentComposer: View {
         let pasted = drafts.pasted[terminal] ?? []
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         VStack(alignment: .leading, spacing: 9) {
-            if !attached.isEmpty || !pasted.isEmpty { attachments(attached, pasted: pasted) }
+            if !attached.isEmpty || !pasted.isEmpty || model.notesWaiting(for: terminal) > 0 { attachments(attached, pasted: pasted) }
             ZStack(alignment: .topLeading) {
                 if words.isEmpty {
                     Text("Write to \(model.composeRecipient(terminal))")
@@ -432,7 +441,8 @@ struct AgentComposer: View {
                 }
                 .tiriGlassButton(prominent: true)
                 .controlSize(.small)
-                .disabled(words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attached.isEmpty && pasted.isEmpty)
+                .disabled(words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attached.isEmpty && pasted.isEmpty
+                          && (model.notesWaiting(for: terminal) == 0 || drafts.withoutNotes.contains(terminal)))
                 .help("Send (⌘↩)")
             }
         }
@@ -459,6 +469,7 @@ struct AgentComposer: View {
         // On to a second line when there are many, so none is out of sight.
         WrappingRow(spacing: 8) {
             Group {
+                if model.notesWaiting(for: terminal) > 0 { NotesChip(terminal: terminal) }
                 ForEach(Array(pasted.enumerated()), id: \.offset) { index, text in
                     PastedTextChip(text: text, remove: { model.removePaste(at: index, for: terminal) },
                                    unfold: { model.unfoldPaste(at: index, for: terminal) })

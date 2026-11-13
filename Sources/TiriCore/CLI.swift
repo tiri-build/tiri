@@ -159,6 +159,11 @@ public enum CLIParser {
             }
             return request("dev.a11y", payload)
 
+        case "dev-note":
+            // Notes, as the pointer and keys would make them: tiri dev-note <action> [values…]   (test copies only)
+            guard let action = args.first else { throw UsageError("usage: tiri dev-note hover|lines|point|hoverat|latch|type|add|send|esc|edit|state [values…]   (test copies only)") }
+            return request("dev.note", ["action": .string(action), "values": .array(args.dropFirst().map { .string($0) })])
+
         case "dev-notification":
             guard args.count == 1 else { throw UsageError("usage: tiri dev-notification <item>   (test copies only)") }
             return request("dev.notification", ["item": .string(args[0])])
@@ -1130,7 +1135,7 @@ public enum CLIParser {
       tiri diff <path> [--tab] [--branch | --commit <rev> | --turn <id|latest>]
                                    (what changed in one file; floats as a Peek)
       tiri review [add <path>[:line[-line]] <text> | remove <id> | clear | send [--to <item-id>]]
-                                   (comments waiting to go to an agent, all at once)
+                                   (notes waiting to go to an agent, all at once)
       tiri diagnostics [<path> ...]   (errors and warnings; without paths, in files changed since the last commit)
       tiri languages [add <id>]    (which language servers Tiri can find, and installing one it has versions for)
       tiri agents [on <agent> | off <agent> | add <name> <command> | remove <agent>]
@@ -1452,13 +1457,15 @@ public enum AgentGuide {
     tiri diagnostics src/app.ts           # or these
     ```
 
-    ## Review comments
+    ## Notes
 
-    The user can comment on lines of files and diffs, then send them all to an agent at once.
-    They arrive in your input as one message. You can read the ones still waiting too.
+    The user can leave a note on lines of a file or a diff, on an element of a page, or on a spot or region of
+    a picture or a PDF, then send them all to an agent at once. They arrive in your input as one numbered
+    message. A note on something pointed at says where it is, and names a picture of it with the place marked,
+    which you can open. Notes already sent stay listed, marked sent. You can read all of them.
 
     ```sh
-    tiri review                           # comments waiting to be sent
+    tiri review                           # notes, waiting and sent
     tiri review add src/app.ts:12-20 "This doesn't handle an empty list"
     tiri review send --to <item-id>       # put them in that session's input, unsent
     ```

@@ -215,8 +215,6 @@ final class AppModel {
     @ObservationIgnored let languageTrust = LanguageServerTrust()
     @ObservationIgnored var hoverPopover: NSPopover?
     @ObservationIgnored var hoverWork: DispatchWorkItem?
-    @ObservationIgnored var reviewPopover: NSPopover?
-    @ObservationIgnored var reviewPopoverCloser: NSObjectProtocol?
     /// Fetches and pushes under way, by repository.
     var repositoryTransfers: [String: RepositoryTransfer] = [:]
     @ObservationIgnored var userPath: String? {

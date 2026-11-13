@@ -78,9 +78,34 @@ final class CodeTextView: NSTextView {
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
         drawExtraSelections(in: rect)
+        drawNotedLines(in: rect)
         guard selectedRange().length == 0, let found = caretLineRect, found.intersects(rect) else { return }
         ThemePalette.currentLine.setFill()
         found.fill(using: .sourceOver)
+    }
+
+    /// The lines notes are on, as character ranges, tinted across the whole width.
+    var notedRanges: [NSRange] = [] {
+        didSet { if notedRanges != oldValue { needsDisplay = true } }
+    }
+    /// The space left under the paragraph a character ends, where a note sits. It isn't part of the line.
+    var gapAfter: ((Int) -> CGFloat)?
+
+    private func gap(underFragment glyphs: NSRange) -> CGFloat {
+        guard let gapAfter, let layout = layoutManager, glyphs.length > 0 else { return 0 }
+        return gapAfter(layout.characterIndexForGlyph(at: NSMaxRange(glyphs) - 1))
+    }
+
+    private func drawNotedLines(in rect: NSRect) {
+        guard !notedRanges.isEmpty, let layout = layoutManager, let textStorage else { return }
+        NSColor.controlAccentColor.withAlphaComponent(0.1).setFill()
+        for range in notedRanges where range.location < textStorage.length {
+            let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: range.location, length: min(range.length, textStorage.length - range.location)), actualCharacterRange: nil)
+            layout.enumerateLineFragments(forGlyphRange: glyphs) { fragment, _, _, fragmentGlyphs, _ in
+                let line = NSRect(x: 0, y: fragment.minY + self.textContainerOrigin.y, width: self.bounds.width, height: fragment.height - self.gap(underFragment: fragmentGlyphs))
+                if line.intersects(rect) { line.fill(using: .sourceOver) }
+            }
+        }
     }
 
     /// The row with the cursor, across the whole width of the view.
@@ -94,7 +119,9 @@ final class CodeTextView: NSTextView {
                 line = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: textStorage.length - 1), effectiveRange: nil)
             }
         } else {
-            line = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: caret), effectiveRange: nil)
+            var glyphs = NSRange()
+            line = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: caret), effectiveRange: &glyphs)
+            line.size.height -= gap(underFragment: glyphs)
         }
         if line.isEmpty { line = NSRect(x: 0, y: 0, width: 0, height: (font?.pointSize ?? 12) + 4) }
         return NSRect(x: 0, y: line.minY + textContainerOrigin.y, width: bounds.width, height: line.height)

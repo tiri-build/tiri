@@ -21,7 +21,6 @@ struct WebRequestEntry: Equatable {
 
 enum WebScripts {
     static let logHandler = "tiriWebLog"
-    static let pickHandler = "tiriWebPick"
 
     /// In the page's own world, because that's the only place its console and errors can be heard. It
     /// only passes things along, and a page writing to it can only add to its own log.
@@ -88,66 +87,6 @@ enum WebScripts {
     })();
     """#
 
-    /// In a world of its own, so a page can't see it or fake what's picked.
-    static let pick = #"""
-    (() => {
-      if (window.__tiriPicking) return false;
-      window.__tiriPicking = true;
-      const box = document.createElement('div');
-      box.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:none;background:rgba(80,140,255,.25);outline:2px solid rgb(80,140,255);border-radius:2px;display:none';
-      document.documentElement.appendChild(box);
-      let current = null;
-      const part = (element) => {
-        if (element.id) return '#' + CSS.escape(element.id);
-        let text = element.tagName.toLowerCase();
-        const parent = element.parentElement;
-        if (parent) {
-          const same = Array.from(parent.children).filter((child) => child.tagName === element.tagName);
-          if (same.length > 1) text += `:nth-of-type(${same.indexOf(element) + 1})`;
-        }
-        return text;
-      };
-      const selector = (element) => {
-        const parts = [];
-        for (let node = element; node && node.nodeType === 1 && parts.length < 6; node = node.parentElement) {
-          parts.unshift(part(node));
-          if (node.id) break;
-        }
-        return parts.join(' > ');
-      };
-      const move = (event) => {
-        current = event.target;
-        const rect = current.getBoundingClientRect();
-        box.style.cssText += `;display:block;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px`;
-      };
-      const finish = () => {
-        removeEventListener('mousemove', move, true);
-        removeEventListener('click', click, true);
-        removeEventListener('keydown', key, true);
-        box.remove();
-        window.__tiriPicking = false;
-      };
-      const send = (message) => webkit.messageHandlers.tiriWebPick.postMessage(message);
-      const click = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const element = current || event.target;
-        finish();
-        send({selector: selector(element), html: element.outerHTML.slice(0, 2000), text: (element.innerText || '').slice(0, 500)});
-      };
-      const key = (event) => {
-        if (event.key !== 'Escape') return;
-        event.preventDefault();
-        finish();
-        send({});
-      };
-      addEventListener('mousemove', move, true);
-      addEventListener('click', click, true);
-      addEventListener('keydown', key, true);
-      return true;
-    })();
-    """#
-
     static func string(_ value: String) -> String {
         let data = (try? JSONSerialization.data(withJSONObject: [value])) ?? Data("[\"\"]".utf8)
         return String(String(decoding: data, as: UTF8.self).dropFirst().dropLast())
@@ -159,15 +98,10 @@ extension WebController: WKScriptMessageHandler {
         let controller = webView.configuration.userContentController
         controller.addUserScript(WKUserScript(source: WebScripts.listening, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
         controller.add(WeakMessageHandler(self), contentWorld: .page, name: WebScripts.logHandler)
-        controller.add(WeakMessageHandler(self), contentWorld: .defaultClient, name: WebScripts.pickHandler)
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any] else { return }
-        if message.name == WebScripts.pickHandler {
-            picked(body)
-            return
-        }
         // The script in the page limits this too, and a page can talk past that script.
         let now = ProcessClock.now()
         if now - logWindowStart > 1000 {
@@ -198,18 +132,9 @@ extension WebController: WKScriptMessageHandler {
         errorCount = 0
     }
 
-    func startPicking() {
-        focus()
-        picking = true
-        webView.evaluateJavaScript(WebScripts.pick, in: nil, in: .defaultClient) { _ in }
-    }
-
-    private func picked(_ body: [String: Any]) {
-        picking = false
-        guard let selector = body["selector"] as? String else { return }
-        var text = "From \(currentURLString), the element `\(selector)`:\n```html\n\(body["html"] as? String ?? "")\n```"
-        if let shown = body["text"] as? String, !shown.isEmpty { text += "\nIt shows: \(shown)" }
-        model.addReference(AgentSelection(path: currentURLString, quote: text + "\n"))
+    /// A new page: the notes on the last one aren't on this one, and its own are.
+    func pageChangedForNotes() {
+        NoteLayer.existing(for: itemID)?.refresh()
     }
 
     /// The page's errors, for handing to an agent as they are.

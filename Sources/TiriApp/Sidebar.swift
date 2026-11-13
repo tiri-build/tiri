@@ -102,7 +102,7 @@ struct SidebarView: View {
             }
             if !model.active.review.isEmpty {
                 Divider()
-                sectionHeader(String(localized: "Review"), isOpen: $reviewOpen) {
+                sectionHeader(String(localized: "Notes"), isOpen: $reviewOpen) {
                     ReviewHeaderActions()
                 }
                 if reviewOpen {

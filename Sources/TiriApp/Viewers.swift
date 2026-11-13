@@ -189,11 +189,19 @@ final class MarkdownController: NSObject, ItemController, WKNavigationDelegate, 
     unowned let model: AppModel
     private let container = HostContainer()
     private lazy var webView: TiriWebView = makeWebView()
-    private lazy var quoteButton: QuoteButton = {
-        let button = QuoteButton(host: container)
-        button.onQuote = { [weak self] in self?.model.addFrontToAgent() }
-        return button
+    /// The rendered page, when that's what's showing: where notes are pointed at rather than written between lines.
+    var noteWebView: TiriWebView? { inSource ? nil : webView }
+    private(set) lazy var pageNotes: WebNotes = {
+        let notes = WebNotes(webView: webView, root: { [weak self] in self?.view })
+        notes.path = { [weak self] in self?.path ?? "" }
+        notes.linesOfBlock = { [weak self] first, last in
+            guard let self, self.format == .markdown else { return nil }
+            return ReviewAnchor(path: self.path, firstLine: first, lastLine: last, excerpt: ReviewQuote.lines(first, last, of: self.path))
+        }
+        return notes
     }()
+    var notesSitInText: Bool { inSource }
+    func reviewChanged() { source?.reviewChanged() }
     private var source: TextController?
     private(set) var showingSource: Bool
     /// The text viewer in front, when it's the source that's showing.
@@ -261,6 +269,10 @@ final class MarkdownController: NSObject, ItemController, WKNavigationDelegate, 
         view.navigationDelegate = self
         view.onQuote = { [weak self] in self?.model.addFrontToAgent() }
         view.onSelectionChange = { [weak self] selection, top in self?.renderedSelectionChanged(selection, top: top) }
+        view.onScroll = { [weak self] in
+            guard let self else { return }
+            NoteLayer.existing(for: self.itemID)?.refresh()
+        }
         if format == .notebook {
             let controller = view.configuration.userContentController
             controller.removeScriptMessageHandler(forName: NotebookPage.handler, contentWorld: .defaultClient)
@@ -271,11 +283,7 @@ final class MarkdownController: NSObject, ItemController, WKNavigationDelegate, 
 
     /// Selecting in the rendered page is selecting those lines of the file.
     private func renderedSelectionChanged(_ selection: WebSelection?, top: CGFloat?) {
-        guard let selection, let top else {
-            quoteButton.isHidden = true
-            return
-        }
-        quoteButton.show(fromTop: top)
+        guard let selection, top != nil else { return }
         if let lines = renderedLines(selection) {
             model.editorBridge.selectionChanged(EditorSelection(path: path, text: selection.text, startLine: lines.first, startCharacter: 0,
                                                                 endLine: lines.last, endCharacter: 1))
@@ -409,7 +417,6 @@ final class MarkdownController: NSObject, ItemController, WKNavigationDelegate, 
             guard let self else { return }
             let hadKeyboard = self.view.window?.firstResponder === self.webView
             self.fallbackNotice = failure.message
-            self.quoteButton.isHidden = true
             self.sourceController().reload()
             self.render(keepScroll: false)
             if hadKeyboard { self.source?.focus() }
@@ -534,7 +541,6 @@ final class MarkdownController: NSObject, ItemController, WKNavigationDelegate, 
     func toggleSource() {
         showingSource.toggle()
         // The rendered page's selection isn't what's showing any more.
-        quoteButton.isHidden = true
         if showingSource {
             sourceController().reload()
         }
@@ -543,6 +549,7 @@ final class MarkdownController: NSObject, ItemController, WKNavigationDelegate, 
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        NoteLayer.existing(for: itemID)?.refresh()
         if showingOpeningNote, !hasRenderedPage { return }
         model.viewerReady(itemID)
         let scrollY = pendingScrollY
@@ -571,7 +578,6 @@ final class MarkdownController: NSObject, ItemController, WKNavigationDelegate, 
         editingCell = nil
         editingBase = nil
         renderAfterEditing = false
-        quoteButton.isHidden = true
         if crashes.shouldReload(at: ProcessClock.now()) {
             render(keepScroll: false)
             pendingScrollY = place
@@ -823,8 +829,11 @@ final class TextController: NSObject, ItemController, SymbolViewing, NSTextViewD
     private lazy var pluginColors = EditorPluginColors(textView: textView, isComment: { [weak self] in self?.highlighter.isInComment($0) == true },
                                                        hasGrammar: { [weak self] in self?.highlighter.hasGrammar == true })
     private(set) lazy var completion = CompletionController(editor: self)
+    private lazy var noteInline = NoteInline(textView: textView, item: itemID, lines: { [weak self] in self?.ruler.lines ?? LineTable() })
+    /// The lines a drag down the numbers is over, tinted before there's a note.
+    private var draggedLines: ClosedRange<Int>?
+    var notesSitInText: Bool { true }
     private lazy var realPath = Git.real(path)
-    private var quoteButton: QuoteButton?
     private var scrollObservation: NSObjectProtocol?
     /// What's on disk, as far as this viewer knows.
     private var savedText = ""
@@ -895,6 +904,8 @@ final class TextController: NSObject, ItemController, SymbolViewing, NSTextViewD
         if textView.isSteering { return }
         completion.selectionMoved()
         reportSelection()
+        let selection = editorSelection
+        ruler.selectionLines = selection.isEmpty ? nil : (selection.startLine + 1)...max(selection.lastLine + 1, selection.startLine + 1)
     }
 
     /// Tell Claude what's selected, as an editor would.
@@ -932,31 +943,63 @@ final class TextController: NSObject, ItemController, SymbolViewing, NSTextViewD
         return (line, index - ruler.lines.starts[line])
     }
 
-    /// With nothing selected, a comment is on the line the cursor is in.
+    /// With nothing selected, a note is on the line the cursor is in.
     var reviewAnchor: ReviewAnchor? {
         let selection = editorSelection
         let first = selection.startLine + 1
-        let last = max(selection.lastLine + 1, first)
-        let string = textView.nsText
-        let lines = string.lineRange(for: textView.selectedRange())
-        let excerpt = string.substring(with: lines)
-        return ReviewAnchor(path: path, firstLine: first, lastLine: last, excerpt: excerpt)
+        return noteAnchor(lines: first...max(selection.lastLine + 1, first))
     }
 
-    var reviewPopoverPosition: (view: NSView, rect: NSRect)? {
-        guard let layout = textView.layoutManager, let container = textView.textContainer else { return nil }
-        let range = textView.selectedRange()
-        let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: range.location, length: min(range.length, 1)), actualCharacterRange: nil)
-        var rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
-        rect.origin.x += textView.textContainerInset.width
-        rect.origin.y += textView.textContainerInset.height
-        if rect.height < 1 { rect.size.height = 16 }
-        // A long line's selection can start out of sight. The box stays with what's on screen.
-        return rect.intersects(textView.visibleRect) ? (textView, rect) : nil
+    private func characters(ofLines lines: ClosedRange<Int>) -> NSRange? {
+        let table = ruler.lines
+        guard lines.lowerBound >= 1, lines.upperBound <= table.count else { return nil }
+        let start = table.starts[lines.lowerBound - 1]
+        let end = lines.upperBound < table.count ? table.starts[lines.upperBound] : textView.nsText.length
+        return NSRange(location: start, length: max(end - start, 0))
     }
 
+    private func noteAnchor(lines: ClosedRange<Int>) -> ReviewAnchor {
+        let excerpt = characters(ofLines: lines).map { textView.nsText.substring(with: $0) }
+        return ReviewAnchor(path: path, firstLine: lines.lowerBound, lastLine: lines.upperBound, excerpt: excerpt)
+    }
+
+    /// From the + beside a line, or a drag down the numbers.
+    func beginNote(lines: ClosedRange<Int>) {
+        model.beginNote(noteAnchor(lines: lines), in: itemID, at: nil)
+    }
+
+    /// For a test copy: the + as it shows with the pointer beside this line.
+    func hoverGutterForTest(line: Int?) { ruler.hoverForTest(line: line) }
+
+    /// Notes changed, or the text did: the marks, the tint, and what sits between the lines all follow.
     func reviewChanged() {
-        ruler.commentMarkers = model.reviewMarkers(for: path, text: textView.string)
+        let noted = model.notedLines(for: path, text: textView.string)
+        var markers: [Int: [ReviewComment]] = [:]
+        var strips: [Int: NoteInline.Strip] = [:]
+        var tinted: [ClosedRange<Int>] = []
+        let open = NoteWriting.shared.open.flatMap { $0.item == itemID && $0.anchor.spot == nil && $0.anchor.commit == nil && $0.anchor.path == path ? $0 : nil }
+        var boxLine: Int?
+        for (comment, lines) in noted {
+            markers[lines.lowerBound, default: []].append(comment)
+            tinted.append(lines)
+            if comment.id == open?.editing {
+                // The one being rewritten shows the box in its place.
+                boxLine = lines.upperBound
+            } else {
+                strips[lines.upperBound, default: NoteInline.Strip(line: lines.upperBound, comments: [], box: false)].comments.append(comment)
+            }
+        }
+        if let open, open.editing == nil, let first = open.anchor.firstLine {
+            let last = min(max(open.anchor.lastLine ?? first, first), ruler.lines.count)
+            boxLine = last
+            tinted.append(min(first, last)...last)
+        }
+        if let boxLine { strips[boxLine, default: NoteInline.Strip(line: boxLine, comments: [], box: true)].box = true }
+        if let draggedLines { tinted.append(draggedLines) }
+        ruler.commentMarkers = markers
+        ruler.notedLines = Set(tinted.flatMap { Array($0) })
+        textView.notedRanges = tinted.compactMap { characters(ofLines: $0) }
+        noteInline.apply(strips.values.sorted { $0.line < $1.line })
     }
 
     func select(text: String, to end: String?) -> Bool {
@@ -978,10 +1021,25 @@ final class TextController: NSObject, ItemController, SymbolViewing, NSTextViewD
     private func configure() {
         NotificationCenter.default.addObserver(self, selector: #selector(selectionDidChange(_:)),
                                                name: NSTextView.didChangeSelectionNotification, object: textView)
-        quoteButton = QuoteButton(textView: textView, scrollView: scrollView, host: container)
-        quoteButton?.onQuote = { [weak self] in self?.model.addFrontToAgent() }
         let text = textView
         text.editor = self
+        ruler.onNote = { [weak self] lines in self?.beginNote(lines: lines) }
+        ruler.onPin = { [weak self] comment in
+            guard let self else { return }
+            self.model.editNote(comment, in: self.itemID, at: nil)
+        }
+        ruler.onDrag = { [weak self] lines in
+            self?.draggedLines = lines
+            self?.reviewChanged()
+        }
+        ruler.gapBelow = { [weak self] line in self?.noteInline.gap(belowLine: line) ?? 0 }
+        text.gapAfter = { [weak self] index in self?.noteInline.gap(afterCharacter: index) ?? 0 }
+        pluginColors.gapAfter = { [weak self] index in self?.noteInline.gap(afterCharacter: index) ?? 0 }
+        noteInline.onChange = { [weak self] in self?.ruler.needsDisplay = true }
+        pluginColors.didLayout = { [weak self] in
+            // Not in the middle of the layout that's reporting.
+            DispatchQueue.main.async { self?.noteInline.reposition() }
+        }
         // VoiceOver says "text area" otherwise, with nothing to say which file it is.
         text.setAccessibilityLabel((path as NSString).lastPathComponent)
         text.isEditable = true
@@ -1391,7 +1449,7 @@ final class TextController: NSObject, ItemController, SymbolViewing, NSTextViewD
             index += 1
         }
         if view.selectedRange().length > 0 { add(String(localized: "Quote in Agent"), #selector(quoteSelection)) }
-        add(String(localized: "Add Comment"), #selector(addComment))
+        add(String(localized: "Add Note"), #selector(addComment))
         if SymbolText.word(in: view.string as NSString, at: charIndex) != nil {
             // A right-click doesn't move the cursor, and it's what was clicked that's being asked about.
             view.setSelectedRange(NSRange(location: charIndex, length: 0))
@@ -1583,7 +1641,6 @@ final class TextController: NSObject, ItemController, SymbolViewing, NSTextViewD
     var supportsReplace: Bool { textView.isEditable }
 
     private func updateFind(_ query: String, caseSensitive: Bool) {
-        quoteButton?.isSuppressed = true
         // Next and previous don't change anything, and reading a large file again for them would show.
         if query == findQuery, caseSensitive == findCaseSensitive, !findIsStale { return }
         findQuery = query
@@ -1629,7 +1686,6 @@ final class TextController: NSObject, ItemController, SymbolViewing, NSTextViewD
     }
 
     func clearFind() {
-        quoteButton?.isSuppressed = false
         findQuery = ""
         findMatches = []
         findIsStale = false
@@ -1786,6 +1842,29 @@ final class LineGutter: NSView {
         didSet { needsDisplay = true }
     }
     private var markerHits: [(rect: NSRect, comments: [ReviewComment])] = []
+    /// Lines with a note on them, or about to have: tinted, as the text beside them is.
+    var notedLines: Set<Int> = [] {
+        didSet { if notedLines != oldValue { needsDisplay = true } }
+    }
+    /// The lines selected in the text, which a click on their + notes.
+    var selectionLines: ClosedRange<Int>? {
+        didSet { if selectionLines != oldValue { needsDisplay = true } }
+    }
+    /// The line the pointer is beside, which shows a + to note it.
+    private(set) var hoverLine: Int? {
+        didSet { if hoverLine != oldValue { needsDisplay = true } }
+    }
+    /// The lines a drag down the numbers has covered so far.
+    private(set) var dragLines: ClosedRange<Int>? {
+        didSet { if dragLines != oldValue { needsDisplay = true; onDrag?(dragLines) } }
+    }
+    private var dragFrom: Int?
+    private var rowRects: [(line: Int, rect: NSRect)] = []
+    var onNote: ((ClosedRange<Int>) -> Void)?
+    var onPin: ((ReviewComment) -> Void)?
+    var onDrag: ((ClosedRange<Int>?) -> Void)?
+    /// The space under a line where a note sits. It isn't part of the line, so nothing here is centered in it.
+    var gapBelow: ((Int) -> CGFloat)?
     /// Line, counting from 1, to the worst thing wrong with it.
     var problemLines: [Int: LSPDiagnostic.Severity] = [:] {
         didSet { needsDisplay = true }
@@ -1840,7 +1919,8 @@ final class LineGutter: NSView {
     private func updateThickness() {
         let digits = max(String(lines.count).count, 3)
         let digit = ("0" as NSString).size(withAttributes: [.font: font]).width
-        let width = (CGFloat(digits) * digit + 18).rounded(.up)
+        // Room at the left for a note's mark.
+        let width = (CGFloat(digits) * digit + 28).rounded(.up)
         if width != thickness {
             thickness = width
             onThicknessChange?()
@@ -1864,6 +1944,7 @@ final class LineGutter: NSView {
         let selectedLine = lineNumber(forCharacter: text.selectedRange().location)
         markerHits = []
         changeHits = []
+        rowRects = []
         var index = lineNumber(forCharacter: characters.location) - 1
         while index < lineStarts.count {
             let start = lineStarts[index]
@@ -1873,18 +1954,31 @@ final class LineGutter: NSView {
                 line = layout.extraLineFragmentRect
             } else {
                 // A wrapped line can start above the view, somewhere not laid out yet.
-                line = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: start), effectiveRange: nil)
+                var glyphs = NSRange()
+                line = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: start), effectiveRange: &glyphs)
+                // The space for a note comes after a line's last row. On a line of one row, that's this one.
+                let end = index + 1 < lineStarts.count ? lineStarts[index + 1] : length
+                if let gapBelow, NSMaxRange(layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)) >= end {
+                    line.size.height -= gapBelow(index + 1)
+                }
             }
             if line.isEmpty, length == 0 { line = NSRect(x: 0, y: 0, width: 0, height: font.pointSize + 4) }
             let y = text.convert(NSPoint(x: 0, y: line.minY + text.textContainerInset.height), to: self).y
+            rowRects.append((index + 1, NSRect(x: 0, y: y, width: thickness, height: line.height)))
+            if notedLines.contains(index + 1) || dragLines?.contains(index + 1) == true {
+                NSColor.controlAccentColor.withAlphaComponent(0.1).setFill()
+                NSRect(x: 0, y: y, width: thickness, height: line.height).fill(using: .sourceOver)
+            }
             let color: NSColor = index + 1 == selectedLine ? ThemePalette.currentLineNumber : ThemePalette.lineNumber
             let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
             let label = "\(index + 1)" as NSString
             let size = label.size(withAttributes: attributes)
             label.draw(at: NSPoint(x: thickness - size.width - 12, y: y + (line.height - size.height) / 2), withAttributes: attributes)
             if !changesHidden { drawChanges(forLine: index + 1, y: y, height: line.height) }
-            if let comments = commentMarkers[index + 1] {
-                markerHits.append((ReviewMarker.draw(atY: y, lineHeight: line.height), comments))
+            if let comments = commentMarkers[index + 1], let first = comments.first {
+                markerHits.append((NotePin.draw(first, at: NSPoint(x: 3, y: y + (line.height - NotePin.size.height) / 2)), comments))
+            } else if dragLines == nil, hoverLine == index + 1 || (hoverLine == nil && selectionLines?.upperBound == index + 1) {
+                NotePin.drawPlus(at: NSPoint(x: 4, y: y + (line.height - 16) / 2))
             }
             if let severity = problemLines[index + 1] {
                 ProblemMarks.drawDot(severity: severity, x: thickness - 10, y: y, lineHeight: line.height)
@@ -1925,25 +2019,56 @@ final class LineGutter: NSView {
         addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self))
     }
 
+    private func line(at point: NSPoint) -> Int? {
+        rowRects.first { point.y >= $0.rect.minY && point.y < $0.rect.maxY }?.line
+    }
+
     override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         (changeHits.contains { $0.rect.contains(point) } ? NSCursor.pointingHand : NSCursor.arrow).set()
+        hoverLine = line(at: point)
     }
 
-    override func mouseExited(with event: NSEvent) { NSCursor.arrow.set() }
+    override func mouseExited(with event: NSEvent) {
+        NSCursor.arrow.set()
+        hoverLine = nil
+    }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         if let hit = markerHits.first(where: { $0.rect.insetBy(dx: -3, dy: -2).contains(point) }) {
-            AppModel.shared.editReviewComment(hit.comments[0], from: self, rect: hit.rect)
+            onPin?(hit.comments[0])
             return
         }
         if let hit = changeHits.first(where: { $0.rect.contains(point) }) {
             onChangeClicked?(hit.line)
             return
         }
-        super.mouseDown(with: event)
+        // A press on a line's number starts a note on it, and a drag from there takes in more lines.
+        guard let line = line(at: point) else { return super.mouseDown(with: event) }
+        dragFrom = line
     }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let dragFrom, let line = line(at: convert(event.locationInWindow, from: nil)) else { return }
+        dragLines = min(dragFrom, line)...max(dragFrom, line)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard let dragFrom else { return }
+        let dragged = dragLines
+        self.dragFrom = nil
+        dragLines = nil
+        // A click on the + of a selection notes what's selected.
+        if dragged == nil, let selectionLines, selectionLines.contains(dragFrom) {
+            onNote?(selectionLines)
+        } else {
+            onNote?(dragged ?? dragFrom...dragFrom)
+        }
+    }
+
+    /// For a test copy, where nothing can hover: what the pointer beside this line would show.
+    func hoverForTest(line: Int?) { hoverLine = line }
 }
 
 /// A gutter and a scrolling text view, side by side.
@@ -1987,8 +2112,8 @@ final class CenteringClipView: NSClipView {
 final class ImageController: ItemController {
     let itemID: ItemID
     let path: String
-    private let scrollView = ImageScrollView()
-    private let imageView = NSImageView()
+    let scrollView = ImageScrollView()
+    let imageView = NSImageView()
     private var token: FileWatchHub.Token?
     private var generation = 0
     private var darkOnClear = false
@@ -2337,7 +2462,7 @@ final class TiriPDFView: PDFView {
 final class PDFController: NSObject, ForceDarkCapable {
     let itemID: ItemID
     let path: String
-    private let pdfView = TiriPDFView()
+    let pdfView = TiriPDFView()
     private let host: DarkPaperHost
     private unowned let model: AppModel
     private var token: FileWatchHub.Token?
@@ -2346,11 +2471,6 @@ final class PDFController: NSObject, ForceDarkCapable {
     private var pendingPage: Int?
     // Outside the host, because in dark mode everything inside it is inverted.
     private let container = HostContainer()
-    private lazy var quoteButton: QuoteButton = {
-        let button = QuoteButton(host: container)
-        button.onQuote = { [weak self] in self?.model.addFrontToAgent() }
-        return button
-    }()
 
     var view: NSView { container }
 
@@ -2393,22 +2513,10 @@ final class PDFController: NSObject, ForceDarkCapable {
         })
     }
 
-    /// Level with the first part of the selection that's on screen. None on screen, no button.
+    /// The page moved or changed size: the marks of notes on it move with it.
     private func updateQuoteButton() {
         watchScrolling()
-        guard let selection = pdfView.currentSelection, selection.string?.isEmpty == false else {
-            quoteButton.isHidden = true
-            return
-        }
-        for page in selection.pages {
-            let area = pdfView.convert(pdfView.convert(selection.bounds(for: page), from: page), to: container)
-            if area.intersects(container.bounds) {
-                let top = container.isFlipped ? area.minY : container.bounds.height - area.maxY
-                quoteButton.show(fromTop: max(top, 4))
-                return
-            }
-        }
-        quoteButton.isHidden = true
+        NoteLayer.existing(for: itemID)?.refresh()
     }
 
     func select(text: String, to end: String?) -> Bool {

@@ -16,6 +16,10 @@ final class EditorPluginColors: NSObject, NSLayoutManagerDelegate {
     /// whatever else changes, since the next line could be as slow.
     private var tooSlow: Set<String> = []
     private var file: String?
+    /// The space to leave under the paragraph a character ends, for notes that sit between lines.
+    var gapAfter: ((Int) -> CGFloat)? {
+        didSet { textView?.layoutManager?.delegate = self }
+    }
 
     init(textView: NSTextView, isComment: @escaping (Int) -> Bool, hasGrammar: @escaping () -> Bool) {
         self.textView = textView
@@ -31,7 +35,7 @@ final class EditorPluginColors: NSObject, NSLayoutManagerDelegate {
         guard let layout = textView?.layoutManager else { return }
         // With none, the layout manager doesn't ask, and drawing costs what it always did.
         if rules.isEmpty {
-            if layout.delegate === self { layout.delegate = nil }
+            if layout.delegate === self, gapAfter == nil { layout.delegate = nil }
         } else {
             layout.delegate = self
         }
@@ -87,6 +91,18 @@ final class EditorPluginColors: NSObject, NSLayoutManagerDelegate {
     private func applies(_ mark: (range: NSRange, rule: Int)) -> Bool {
         guard rules.indices.contains(mark.rule) else { return false }
         return !rules[mark.rule].onlyInComments || !hasGrammar() || isComment(mark.range.location)
+    }
+
+    /// Text was laid out again: what sits between the lines has to be put back where its line now is.
+    var didLayout: (() -> Void)?
+
+    func layoutManager(_ layoutManager: NSLayoutManager, didCompleteLayoutFor textContainer: NSTextContainer?, atEnd layoutFinishedFlag: Bool) {
+        didLayout?()
+    }
+
+    func layoutManager(_ layoutManager: NSLayoutManager, paragraphSpacingAfterGlyphAt glyphIndex: Int, withProposedLineFragmentRect rect: NSRect) -> CGFloat {
+        guard let gapAfter else { return 0 }
+        return gapAfter(layoutManager.characterIndexForGlyph(at: glyphIndex))
     }
 
     func layoutManager(_ layoutManager: NSLayoutManager, shouldUseTemporaryAttributes attrs: [NSAttributedString.Key: Any] = [:], forDrawingToScreen toScreen: Bool,

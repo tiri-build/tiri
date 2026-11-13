@@ -34,7 +34,7 @@ These are the names people use when they ask for a change, and the file to start
 | Quick open, the command palette | `Sources/TiriApp/Palette.swift` |
 | Commands and what `tiri` can ask for | `Sources/TiriApp/Commands.swift` |
 | The bar along the bottom | `Sources/TiriApp/StatusBar.swift` |
-| Review comments | `Sources/TiriApp/ReviewView.swift` |
+| Notes on lines, pages and pictures, the + beside a line, pointing | `Sources/TiriApp/ReviewView.swift`, `NoteViews.swift`, `NoteInline.swift`, `NoteLayer.swift`, `NotePointingWeb.swift`, `NotePointingMedia.swift` |
 | Settings | `Sources/TiriApp/SettingsView.swift`, and `Sources/TiriCore/SettingsSchema.swift` for the rows |
 | The start screen, the window's layout | `Sources/TiriApp/RootView.swift` |
 | More than one window, each with its own workspace | `Sources/TiriApp/WorkspaceWindows.swift` |

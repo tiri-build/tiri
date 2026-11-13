@@ -135,10 +135,10 @@ extension AppModel {
             AppCommand(id: "addToAgent", title: "Add to Agent", category: "Agents") { $0.addFrontToAgent() },
             AppCommand(id: "attachToAgent", title: "Add Files or Images to Agent…", category: "Agents") { $0.chooseFilesForAgent() },
             AppCommand(id: "composeToAgent", title: "Write to Agent", category: "Agents", keywords: ["compose", "message", "draft", "prompt"]) { $0.composeToAgent() },
-            AppCommand(id: "addReviewComment", title: "Review: Add Comment", category: "Agents") { $0.beginReviewComment() },
-            AppCommand(id: "sendReview", title: "Review: Send Comments to Agent", category: "Agents") { $0.sendReview() },
+            AppCommand(id: "addReviewComment", title: "Note: Add One Here", category: "Agents") { $0.beginReviewComment() },
+            AppCommand(id: "sendReview", title: "Note: Send Notes to Agent", category: "Agents") { $0.sendReview() },
             AppCommand(id: "conversations", title: "Past Conversations…", category: "Agents") { $0.openConversationPicker() },
-            AppCommand(id: "pickOnPage", title: "Web: Pick Something on the Page", category: "Agents") { $0.frontWebController?.startPicking() },
+            AppCommand(id: "pickOnPage", title: "Note: Point at Something", category: "Agents") { $0.togglePointing() },
             AppCommand(id: "manageAgents", title: "Manage Agents…", category: "Agents") { $0.openAgentSettings() },
             AppCommand(id: "showChanges", title: "Show Changes in This File", category: "Changes and Git") { $0.toggleChangesForFront() },
             AppCommand(id: "toggleDiffSideBySide", title: "Diff: Side by Side", category: "Changes and Git") { model in
@@ -804,6 +804,9 @@ enum ControlHandler {
                 if let doing = row.doing { entry["doing"] = .string(doing) }
                 return .object(entry)
             })
+
+        case "dev.note":
+            return try NoteTesting.run(request, model: model)
 
         case "dev.change":
             guard ProcessInfo.processInfo.environment["TIRI_DEV_OFFSCREEN"] == "1", let row = request.args["row"]?.intValue,
@@ -1630,6 +1633,11 @@ enum ControlHandler {
                 var object: [String: JSONValue] = ["id": .string(comment.id), "path": .string(comment.path), "text": .string(comment.text)]
                 if let first = comment.firstLine { object["line"] = .int(first) }
                 if let last = comment.lastLine { object["lastLine"] = .int(last) }
+                if let spot = comment.spot {
+                    object["on"] = .string(spot.label)
+                    if let picture = spot.picture { object["picture"] = .string(picture) }
+                }
+                if comment.sent != nil { object["sent"] = .bool(true) }
                 return .object(object)
             })
 

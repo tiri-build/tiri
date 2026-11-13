@@ -30,6 +30,8 @@ protocol ItemController: AnyObject {
     var reviewPopoverPosition: (view: NSView, rect: NSRect)? { get }
     /// Review comments on this file were added, changed or removed.
     func reviewChanged()
+    /// True where a note is written between the lines of the text itself, not in a box over the viewer.
+    var notesSitInText: Bool { get }
     /// Selects text, as someone could with the mouse. For agents pointing at something.
     func select(text: String, to end: String?) -> Bool
     var isDirty: Bool { get }
@@ -72,6 +74,7 @@ extension ItemController {
     }
     var reviewPopoverPosition: (view: NSView, rect: NSRect)? { nil }
     func reviewChanged() {}
+    var notesSitInText: Bool { false }
     func select(text: String, to end: String?) -> Bool { false }
     var isDirty: Bool { false }
     func save(overwriting: Bool) -> SaveResult { .saved }

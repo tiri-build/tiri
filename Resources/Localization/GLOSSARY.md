@@ -8,6 +8,7 @@ The same thing is always called the same. Add a row when a new word will come up
 | Home (the workspace with no folder) | 主工作区 | 主工作區 |
 | terminal | 终端 | 終端機 |
 | agent | 智能体 | 代理 |
+| note (on lines, a page or a picture, for an agent) | 批注 | 註記 |
 | item (a tab's contents: file, terminal, page) | 项目 | 項目 |
 | Open Items | 打开的项目 | 開啟的項目 |
 | tab | 标签页 | 分頁 |

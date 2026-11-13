@@ -4,7 +4,7 @@ import SwiftUI
 import TiriCore
 
 /// What an agent changed in one file. An item like any other: a tab, a split or a Peek.
-final class DiffController: NSObject, ItemController, SymbolViewing, NSTextViewDelegate {
+final class DiffController: NSObject, ItemController, SymbolViewing, NSTextViewDelegate, NoteSurface {
     let itemID: ItemID
     let spec: DiffSpec
     var path: String { spec.path }
@@ -27,7 +27,6 @@ final class DiffController: NSObject, ItemController, SymbolViewing, NSTextViewD
     private var tooLargeStamp: [Int]?
     private var shownImages: Data?
     private let message = NSTextField(labelWithString: "")
-    private var quoteButtons: [QuoteButton] = []
     private var menuProblems: [LSPDiagnostic] = []
     private(set) var diff = FileDiff()
     private var pairs: [Int: Int] = [:]
@@ -76,15 +75,25 @@ final class DiffController: NSObject, ItemController, SymbolViewing, NSTextViewD
             self.activePane = pane
         }
         pane.wordRanges = { [weak self] line in self?.changedRanges(ofLine: line) ?? [] }
+        pane.gutter.onNote = { [weak self, weak pane] rows in
+            guard let self, let pane else { return }
+            self.activePane = pane
+            guard let anchor = self.noteAnchor(rows: self.lines(inRows: rows)) else { return }
+            self.model.beginNote(anchor, in: self.itemID, at: self.layerRect(ofRows: rows, in: pane))
+        }
+        pane.gutter.onPin = { [weak self, weak pane] comment, row in
+            guard let self, let pane else { return }
+            self.model.editNote(comment, in: self.itemID, at: self.layerRect(ofRows: row...row, in: pane))
+        }
+        pane.gutter.onDrag = { [weak pane] rows in
+            pane?.draggedRows = rows
+        }
         pane.textView.onHoverRow = { [weak self, weak pane] row in
             guard let self, let pane else { return }
             self.hover(row: row, in: pane)
         }
         NotificationCenter.default.addObserver(self, selector: #selector(selectionDidChange(_:)),
                                                name: NSTextView.didChangeSelectionNotification, object: pane.textView)
-        let button = QuoteButton(textView: pane.textView, scrollView: pane.scrollView, host: container)
-        button.onQuote = { [weak self] in self?.model.addFrontToAgent() }
-        quoteButtons.append(button)
         pane.scrollView.contentView.postsBoundsChangedNotifications = true
         scrollObservers.append(NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: pane.scrollView.contentView, queue: .main) { [weak self, weak pane] _ in
             MainActor.assumeIsolated {
@@ -526,6 +535,8 @@ final class DiffController: NSObject, ItemController, SymbolViewing, NSTextViewD
     /// For a test copy, where nothing can hover: what the mouse being on this row would do.
     func hoverForTest(row: Int) { hover(row: row, in: activePane) }
     func requestForTest(_ kind: ChangeRequest.Kind) { requestHoveredChange(kind) }
+    func hoverGutterForTest(row: Int?) { activePane.gutter.hoverForTest(row: row) }
+    func noteForTest(rows: ClosedRange<Int>) { activePane.gutter.noteForTest(rows: rows) }
 
     private var menuChange: [DiffLine]?
 
@@ -541,13 +552,53 @@ final class DiffController: NSObject, ItemController, SymbolViewing, NSTextViewD
             rows = lines(inRows: row...row)
             guard !rows.isEmpty else { return ReviewAnchor(path: path, commit: spec.commit) }
         }
+        return noteAnchor(rows: rows) ?? ReviewAnchor(path: path, commit: spec.commit)
+    }
+
+    /// A note on these rows of the diff: the lines of the file they are now, and the change itself to quote.
+    private func noteAnchor(rows: [DiffLine]) -> ReviewAnchor? {
         let body = rows.filter { $0.kind != .hunk }
-        guard !body.isEmpty else { return ReviewAnchor(path: path, commit: spec.commit) }
+        guard !body.isEmpty else { return nil }
         let numbers = body.compactMap(\.newLine)
         let kept = body.filter { $0.kind != .removed }.map(\.text)
         return ReviewAnchor(path: path, firstLine: numbers.first, lastLine: numbers.last,
                             excerpt: kept.isEmpty ? nil : kept.joined(separator: "\n"),
                             quote: DiffQuote.rows(body), quoteIsDiff: true, commit: spec.commit)
+    }
+
+    // MARK: Notes
+
+    /// Notes here start from the + beside a row. The layer over the diff only holds the box.
+    var canPoint: Bool { false }
+
+    private func layerRect(ofRows rows: ClosedRange<Int>, in pane: DiffPane) -> NSRect {
+        let text = pane.textView
+        let visible = text.visibleRect
+        let rect = NSRect(x: visible.minX, y: pane.y(ofRow: rows.lowerBound), width: visible.width, height: CGFloat(rows.count) * pane.lineHeight)
+        return NoteLayer.rect(rect, of: text, in: view)
+    }
+
+    /// The rows a note is on, in a column: found by the file's line, or for removed rows by their own text.
+    private func rows(of anchor: ReviewAnchor, in pane: DiffPane) -> ClosedRange<Int>? {
+        guard anchor.commit == spec.commit else { return nil }
+        if let first = anchor.firstLine, let line = diff.lines.firstIndex(where: { $0.newLine == first }), let row = pane.row(ofLine: line) ?? pane.nearestRow(toLine: line) {
+            let last = anchor.lastLine.flatMap { wanted in diff.lines.firstIndex { $0.newLine == wanted } }.flatMap { pane.row(ofLine: $0) } ?? row
+            return row...max(row, last)
+        }
+        if anchor.quoteIsDiff, let quoted = anchor.quote?.split(separator: "\n").first {
+            let text = quoted.dropFirst()
+            if let line = diff.lines.firstIndex(where: { $0.kind == .removed && $0.text == text }), let row = pane.row(ofLine: line) ?? pane.nearestRow(toLine: line) {
+                return row...row
+            }
+        }
+        return nil
+    }
+
+    func noteTarget(from start: NSPoint, to end: NSPoint, depth: Int, reply: @escaping (NoteTarget?) -> Void) { reply(nil) }
+
+    func noteRects(for anchors: [ReviewAnchor], reply: @escaping ([NSRect?]) -> Void) {
+        let pane = activePane
+        reply(anchors.map { anchor in rows(of: anchor, in: pane).map { layerRect(ofRows: $0, in: pane) } })
     }
 
     var reviewPopoverPosition: (view: NSView, rect: NSRect)? {
@@ -564,12 +615,20 @@ final class DiffController: NSObject, ItemController, SymbolViewing, NSTextViewD
 
     func reviewChanged() {
         let markers = model.reviewMarkers(for: path, rows: diff.lines, commit: spec.commit)
+        let open = NoteWriting.shared.open.flatMap { $0.item == itemID ? $0 : nil }
         for pane in panes {
-            var rows: [Int: [ReviewComment]] = [:]
+            var marked: [Int: [ReviewComment]] = [:]
+            var noted = Set<Int>()
             for (line, comments) in markers {
-                if let row = pane.row(ofLine: line) { rows[row] = comments }
+                guard let row = pane.row(ofLine: line) else { continue }
+                marked[row] = comments
+                for comment in comments {
+                    if let rows = rows(of: comment.anchor, in: pane) { noted.formUnion(rows) } else { noted.insert(row) }
+                }
             }
-            pane.gutter.commentMarkers = rows
+            if let open, let rows = rows(of: open.anchor, in: pane) { noted.formUnion(rows) }
+            pane.gutter.commentMarkers = marked
+            pane.notedRows = noted
         }
     }
 
@@ -638,7 +697,7 @@ final class DiffController: NSObject, ItemController, SymbolViewing, NSTextViewD
             index += 1
         }
         if view.selectedRange().length > 0 { add(String(localized: "Quote in Agent"), #selector(quoteSelection)) }
-        add(String(localized: "Add Comment"), #selector(addComment))
+        add(String(localized: "Add Note"), #selector(addComment))
         let clicked = (activePane.rows.indices.contains(activePane.row(atCharacter: charIndex)) ? activePane.rows[activePane.row(atCharacter: charIndex)] : nil)
         let chosen = selectedRows.filter { $0.kind != .hunk }
         menuChange = !chosen.isEmpty ? chosen : clicked.flatMap { DiffHunks.change(around: $0, in: diff.lines) }.map { Array(diff.lines[$0]) }
@@ -719,6 +778,21 @@ final class DiffPane {
     private(set) var lineHeight: CGFloat = 16
     var wordRanges: ((Int) -> [NSRange])?
     private(set) lazy var highlighter = LineHighlighter(textView: textView)
+    /// Rows a note is on, tinted across the column and its numbers.
+    var notedRows: Set<Int> = [] {
+        didSet { if notedRows != oldValue { redrawNotes() } }
+    }
+    /// Rows a drag down the numbers is over.
+    var draggedRows: ClosedRange<Int>? {
+        didSet { if draggedRows != oldValue { redrawNotes() } }
+    }
+
+    private func redrawNotes() {
+        textView.needsDisplay = true
+        gutter.needsDisplay = true
+    }
+
+    func isNoted(row: Int) -> Bool { notedRows.contains(row) || draggedRows?.contains(row) == true }
 
     init(side: Side) {
         self.side = side
@@ -804,7 +878,8 @@ final class DiffPane {
         // Wide enough for the biggest number, once there are six digits.
         let biggest = lines.last { $0.newLine != nil || $0.oldLine != nil }.map { max($0.newLine ?? 0, $0.oldLine ?? 0) } ?? 0
         gutter.columnWidth = max(40, CGFloat(String(biggest).count) * 7 + 6)
-        gutter.thickness = side == .inline ? gutter.columnWidth * 2 + 8 : gutter.columnWidth + 12
+        // Room at the left for a note's mark.
+        gutter.thickness = (side == .inline ? gutter.columnWidth * 2 + 8 : gutter.columnWidth + 12) + DiffGutter.markRoom
         redraw()
         layOutAhead()
     }
@@ -1009,6 +1084,10 @@ final class DiffTextView: NSTextView {
         for row in pane.visibleRows(in: rect) {
             let y = pane.y(ofRow: row)
             let full = NSRect(x: 0, y: y, width: width, height: pane.lineHeight)
+            if pane.isNoted(row: row) {
+                NSColor.controlAccentColor.withAlphaComponent(0.12).setFill()
+                full.fill(using: .sourceOver)
+            }
             guard let index = pane.rows[row] else {
                 Self.blankRowColor.setFill()
                 full.fill(using: .sourceOver)
@@ -1052,6 +1131,19 @@ final class DiffGutter: NSView {
     var currentLines: Range<Int>? { didSet { needsDisplay = true } }
     private weak var pane: DiffPane?
     private var observers: [NSObjectProtocol] = []
+    /// What a note's mark needs at the left of the numbers.
+    static let markRoom: CGFloat = 16
+    /// The row the pointer is beside, which shows a + to note it.
+    private var hoverRow: Int? { didSet { if hoverRow != oldValue { needsDisplay = true } } }
+    private var dragFrom: Int?
+    private var dragRows: ClosedRange<Int>? {
+        didSet { if dragRows != oldValue { needsDisplay = true; onDrag?(dragRows) } }
+    }
+    var onNote: ((ClosedRange<Int>) -> Void)?
+    var onPin: ((ReviewComment, Int) -> Void)?
+    var onDrag: ((ClosedRange<Int>?) -> Void)?
+    private var markerRows: [(rect: NSRect, comment: ReviewComment, row: Int)] = []
+    private var tracking: NSTrackingArea?
     var columnWidth: CGFloat = 40
     var thickness: CGFloat = 88 { didSet { if thickness != oldValue { superview?.needsLayout = true } } }
 
@@ -1077,9 +1169,14 @@ final class DiffGutter: NSView {
         let text = pane.textView
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.faintLabel]
         markerHits = []
+        markerRows = []
         for row in pane.visibleRows(in: text.visibleRect) {
             let y = text.convert(NSPoint(x: 0, y: pane.y(ofRow: row)), to: self).y
             let height = pane.lineHeight
+            if pane.isNoted(row: row) {
+                NSColor.controlAccentColor.withAlphaComponent(0.12).setFill()
+                NSRect(x: 0, y: y, width: thickness, height: height).fill(using: .sourceOver)
+            }
             guard let index = pane.rows[row] else {
                 DiffTextView.blankRowColor.setFill()
                 NSRect(x: 0, y: y, width: thickness, height: height).fill(using: .sourceOver)
@@ -1100,8 +1197,11 @@ final class DiffGutter: NSView {
                 let size = label.size(withAttributes: attributes)
                 label.draw(at: NSPoint(x: right - size.width, y: y + (height - size.height) / 2), withAttributes: attributes)
             }
-            if let comments = commentMarkers[row] {
-                markerHits.append((ReviewMarker.draw(atY: y, lineHeight: height), comments))
+            if let first = commentMarkers[row]?.first {
+                let rect = NotePin.draw(first, at: NSPoint(x: 3, y: y + (height - NotePin.size.height) / 2))
+                markerRows.append((rect, first, row))
+            } else if dragRows == nil, hoverRow == row, line.kind != .hunk {
+                NotePin.drawPlus(at: NSPoint(x: 4, y: y + (height - 16) / 2))
             }
             if let severity = problemRows[row] {
                 ProblemMarks.drawDot(severity: severity, x: thickness - 6, y: y, lineHeight: height)
@@ -1114,21 +1214,57 @@ final class DiffGutter: NSView {
         switch pane?.side {
         case .old: [(line.oldLine, thickness - 8)]
         case .new: [(line.newLine, thickness - 8)]
-        default: [(line.oldLine, columnWidth - 2), (line.newLine, columnWidth * 2 - 2)]
+        default: [(line.oldLine, Self.markRoom + columnWidth - 2), (line.newLine, Self.markRoom + columnWidth * 2 - 2)]
         }
     }
+
+    private func row(at point: NSPoint) -> Int? {
+        guard let pane else { return nil }
+        let inText = pane.textView.convert(point, from: self)
+        let row = Int((inText.y - pane.textView.textContainerInset.height) / pane.lineHeight)
+        return row >= 0 && row < pane.rows.count && pane.rows[row] != nil ? row : nil
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let tracking { removeTrackingArea(tracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        tracking = area
+    }
+
+    override func mouseMoved(with event: NSEvent) { hoverRow = row(at: convert(event.locationInWindow, from: nil)) }
+    override func mouseExited(with event: NSEvent) { hoverRow = nil }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if let hit = markerHits.first(where: { $0.rect.insetBy(dx: -3, dy: -2).contains(point) }) {
-            AppModel.shared.editReviewComment(hit.comments[0], from: self, rect: hit.rect)
+        if let hit = markerRows.first(where: { $0.rect.insetBy(dx: -3, dy: -2).contains(point) }) {
+            onPin?(hit.comment, hit.row)
             return
         }
-        super.mouseDown(with: event)
+        // A press beside a row starts a note on it, and a drag from there takes in more rows.
+        guard let row = row(at: point) else { return super.mouseDown(with: event) }
+        dragFrom = row
     }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let dragFrom, let row = row(at: convert(event.locationInWindow, from: nil)) else { return }
+        dragRows = min(dragFrom, row)...max(dragFrom, row)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard let dragFrom else { return }
+        let dragged = dragRows
+        self.dragFrom = nil
+        dragRows = nil
+        onNote?(dragged ?? dragFrom...dragFrom)
+    }
+
+    /// For a test copy, where nothing can hover.
+    func hoverForTest(row: Int?) { hoverRow = row }
+    func noteForTest(rows: ClosedRange<Int>) { onNote?(rows) }
 }
 
-/// An image before and after, since git can't say what changed in one.
 final class ImageDiffView: NSView {
     nonisolated struct Side: @unchecked Sendable {
         var title: String

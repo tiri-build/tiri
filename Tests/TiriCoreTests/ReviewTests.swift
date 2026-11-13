@@ -44,7 +44,7 @@ import Testing
         let files = ["/p/src/a.swift": "let a = 1\nlet b = 2\n", "/p/b.md": "words\n"]
         let message = ReviewMessage.text(comments: comments, cwd: "/p", fileText: { files[$0] })
         #expect(message == """
-        Review comments on your work. Please go through each one:
+        Notes on your work. Please go through each one:
 
         1. src/a.swift:2
         ```swift
@@ -60,7 +60,7 @@ import Testing
 
     @Test func oneCommentReadsAsOne() {
         let message = ReviewMessage.text(comments: [ReviewComment(path: "/p/a", text: "Hm")], cwd: "/p", fileText: { _ in "" })
-        #expect(message.hasPrefix("A review comment on your work:"))
+        #expect(message.hasPrefix("A note on your work:"))
     }
 
     @Test func usesTheLinesAsTheyAreNow() {
@@ -72,13 +72,13 @@ import Testing
     @Test func saysWhenTheCodeHasChanged() {
         let comment = ReviewComment(path: "/p/a.py", firstLine: 1, excerpt: "old", text: "x")
         let message = ReviewMessage.text(comments: [comment], cwd: "/p", fileText: { _ in "new\n" })
-        #expect(message.contains("a.py (this code has changed since the comment)\n```py\nold\n```"))
+        #expect(message.contains("a.py (this code has changed since the note)\n```py\nold\n```"))
     }
 
     @Test func aFileThatsGoneDoesNotLoseTheComment() {
         let comment = ReviewComment(path: "/p/a.py", firstLine: 1, excerpt: "old", text: "keep this")
         let message = ReviewMessage.text(comments: [comment], cwd: "/p", fileText: { _ in nil })
-        #expect(message.contains("changed since the comment"))
+        #expect(message.contains("changed since the note"))
         #expect(message.contains("keep this"))
     }
 

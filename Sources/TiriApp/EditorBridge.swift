@@ -644,142 +644,6 @@ struct AgentSession {
     var workspace: Workspace
 }
 
-/// The small button that appears by what you've selected, in a file or a diff.
-final class QuoteButton: NSButton {
-    private weak var textView: NSTextView?
-    private weak var host: NSView?
-    private var observers: [NSObjectProtocol] = []
-    /// Beside it, for keeping a remark for later rather than sending this now.
-    private let commentButton = NSButton(title: "", target: nil, action: nil)
-    var onQuote: (() -> Void)?
-
-    override var isHidden: Bool {
-        didSet { commentButton.isHidden = isHidden }
-    }
-
-    override func setFrameOrigin(_ newOrigin: NSPoint) {
-        super.setFrameOrigin(newOrigin)
-        commentButton.setFrameOrigin(NSPoint(x: newOrigin.x - commentButton.frame.width - 6, y: newOrigin.y))
-    }
-
-    convenience init(textView: NSTextView, scrollView: NSScrollView, host: NSView) {
-        self.init(host: host)
-        self.textView = textView
-        scrollView.contentView.postsBoundsChangedNotifications = true
-        let reposition: @Sendable (Notification) -> Void = { [weak self] _ in
-            MainActor.assumeIsolated { self?.update() }
-        }
-        let center = NotificationCenter.default
-        observers.append(center.addObserver(forName: NSView.boundsDidChangeNotification, object: scrollView.contentView, queue: .main, using: reposition))
-        observers.append(center.addObserver(forName: NSTextView.didChangeSelectionNotification, object: textView, queue: .main, using: reposition))
-    }
-
-    /// For a web view, which reports where its selection is rather than being asked.
-    convenience init(host: NSView) {
-        self.init(title: "", target: nil, action: nil)
-        self.host = host
-        target = self
-        action = #selector(pressed)
-        // Solid, because it sits over code and has to stay readable.
-        isBordered = false
-        wantsLayer = true
-        layer?.cornerRadius = 6
-        layer?.backgroundColor = NSColor.controlAccentColor.cgColor
-        attributedTitle = NSAttributedString(string: String(localized: "Quote in Agent") + "  ⌘L", attributes: [
-            .font: NSFont.systemFont(ofSize: 11.5, weight: .medium), .foregroundColor: NSColor.white,
-        ])
-        isHidden = true
-        sizeToFit()
-        setFrameSize(NSSize(width: frame.width + 18, height: 22))
-        toolTip = String(localized: "Add this selection to your agent's input")
-        host.addSubview(self)
-        commentButton.isBordered = false
-        commentButton.wantsLayer = true
-        commentButton.layer?.cornerRadius = 6
-        commentButton.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        commentButton.layer?.borderWidth = 1
-        commentButton.layer?.borderColor = NSColor.separatorColor.cgColor
-        commentButton.attributedTitle = NSAttributedString(string: String(localized: "Comment") + "  ⌥⌘L", attributes: [
-            .font: NSFont.systemFont(ofSize: 11.5, weight: .medium), .foregroundColor: NSColor.labelColor,
-        ])
-        commentButton.sizeToFit()
-        commentButton.setFrameSize(NSSize(width: commentButton.frame.width + 18, height: 22))
-        commentButton.toolTip = String(localized: "Keep a comment on this for your next batch to the agent")
-        commentButton.target = self
-        commentButton.action = #selector(commentPressed)
-        commentButton.isHidden = true
-        host.addSubview(commentButton)
-    }
-
-    @objc private func commentPressed() { AppModel.shared.beginReviewComment() }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        applyColors()
-    }
-
-    /// Layer colors are fixed when they're set, and outside a window they resolve against the
-    /// Mac's appearance, not the app's. Set again whenever it's shown.
-    private func applyColors() {
-        effectiveAppearance.performAsCurrentDrawingAppearance {
-            layer?.backgroundColor = NSColor.controlAccentColor.cgColor
-            commentButton.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-            commentButton.layer?.borderColor = NSColor.separatorColor.cgColor
-        }
-    }
-
-    /// A distance from the top of the host, in a view whose own coordinates are ignored.
-    func show(fromTop top: CGFloat) {
-        guard let host else { return }
-        let y = host.isFlipped ? top : host.bounds.height - top - frame.height
-        setFrameOrigin(NSPoint(x: max(host.bounds.width - frame.width - 18, 8),
-                               y: min(max(y, 4), max(host.bounds.height - frame.height - 4, 4))))
-        applyColors()
-        isHidden = false
-    }
-
-    isolated deinit {
-        for observer in observers { NotificationCenter.default.removeObserver(observer) }
-    }
-
-    @objc private func pressed() { onQuote?() }
-
-    /// Just above the selection, inside the pane. Off screen with its selection, it hides.
-    /// While find is moving the selection around, it isn't something you're pointing at.
-    var isSuppressed = false {
-        didSet { update() }
-    }
-
-    func update() {
-        guard let textView, let host, let layout = textView.layoutManager, let container = textView.textContainer else { return }
-        let range = textView.selectedRange()
-        guard range.length > 0, !isSuppressed else {
-            isHidden = true
-            return
-        }
-        let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-        var rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
-        rect.origin.y += textView.textContainerInset.height
-        rect.origin.x += textView.textContainerInset.width
-        let visible = textView.visibleRect
-        guard rect.intersects(visible) else {
-            isHidden = true
-            return
-        }
-        // At the pane's right edge, level with the start of the selection, where it covers the least.
-        let top = max(rect.minY, visible.minY)
-        let anchor = textView.convert(NSPoint(x: 0, y: top), to: host)
-        let size = frame.size
-        var y = host.isFlipped ? anchor.y : anchor.y - size.height
-        y = min(max(y, 4), max(host.bounds.height - size.height - 4, 4))
-        // At the right of its own column, when there are two, and not over the other one.
-        let right = textView.enclosingScrollView.map { $0.convert($0.bounds, to: host).maxX } ?? host.bounds.width
-        setFrameOrigin(NSPoint(x: max(right - size.width - 18, 8), y: y))
-        applyColors()
-        isHidden = false
-    }
-}
-
 // MARK: - Selections in web views
 
 /// Tells Tiri what's selected in a web view, and where. It runs apart from the page's own
@@ -941,6 +805,8 @@ final class TiriWebView: WKWebView, WKScriptMessageHandler {
     var selection: WebSelection?
     var onSelectionChange: ((WebSelection?, _ top: CGFloat?) -> Void)?
     var onQuote: (() -> Void)?
+    /// The page scrolled: what's drawn over it has to follow.
+    var onScroll: (() -> Void)?
     /// Where the page was last scrolled to, for putting it back if its process dies.
     var lastScrollY: Double?
 
@@ -958,7 +824,11 @@ final class TiriWebView: WKWebView, WKScriptMessageHandler {
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any] else { return }
-        if let scrollY = body["scrollY"] as? NSNumber { lastScrollY = scrollY.doubleValue }
+        if let scrollY = body["scrollY"] as? NSNumber {
+            lastScrollY = scrollY.doubleValue
+            // Something inside the page may have scrolled without the page itself moving.
+            onScroll?()
+        }
         guard let text = body["text"] as? String, !text.isEmpty else {
             selection = nil
             onSelectionChange?(nil, nil)
@@ -979,10 +849,14 @@ final class TiriWebView: WKWebView, WKScriptMessageHandler {
         let item = NSMenuItem(title: String(localized: "Quote in Agent"), action: #selector(quoteFromMenu), keyEquivalent: "")
         item.target = self
         menu.insertItem(item, at: 0)
-        menu.insertItem(.separator(), at: 1)
+        let note = NSMenuItem(title: String(localized: "Add Note"), action: #selector(noteFromMenu), keyEquivalent: "")
+        note.target = self
+        menu.insertItem(note, at: 1)
+        menu.insertItem(.separator(), at: 2)
     }
 
     @objc private func quoteFromMenu() { onQuote?() }
+    @objc private func noteFromMenu() { AppModel.shared.beginReviewComment() }
 }
 
 /// The content controller keeps its handlers alive, so this keeps it from keeping the view alive.

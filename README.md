@@ -52,7 +52,7 @@ Everyone works differently, so Tiri is yours to change. Not a setting, and not a
 - **Your dev servers in one place.** ▶ Start runs each workspace's servers and start scripts, and every agent uses the same ones, so none starts a second copy.
 - **Folder first:** nothing starts until you say where, so an agent never works in the wrong place.
 - **Per-turn diffs** show what one prompt changed.
-- **Batched review:** comment across many files, then send everything as one message.
+- **Notes on anything:** click the + beside a line, or point at an element of a page or a spot on a picture or PDF, and say what's wrong. Notes collect across files and go to the agent as one message.
 - **⌘L** quotes a selection to your agent, as a real mention in Claude Code.
 
 ## What Tiri believes

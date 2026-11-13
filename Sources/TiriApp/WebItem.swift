@@ -11,11 +11,15 @@ final class WebController: NSObject, ForceDarkCapable, WKNavigationDelegate, WKU
     @ObservationIgnored unowned let model: AppModel
     @ObservationIgnored let webView: TiriWebView
     @ObservationIgnored private let container = HostContainer()
-    @ObservationIgnored private lazy var quoteButton: QuoteButton = {
-        let button = QuoteButton(host: container)
-        button.onQuote = { [weak self] in self?.model.addFrontToAgent() }
-        return button
+    @ObservationIgnored private(set) lazy var pageNotes: WebNotes = {
+        let notes = WebNotes(webView: webView, root: { [weak self] in self?.view })
+        notes.path = { [weak self] in self?.notePath ?? "" }
+        notes.address = { [weak self] in self?.noteAddress }
+        return notes
     }()
+    /// What a note on this page is filed under: the file, or for a page that isn't one, its address.
+    var notePath: String { requested.isFileURL ? requested.path : currentURLString }
+    var noteAddress: String? { requested.isFileURL ? nil : currentURLString }
     @ObservationIgnored private var token: FileWatchHub.Token?
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
     @ObservationIgnored private var appearanceObserver: NSObjectProtocol?
@@ -42,7 +46,6 @@ final class WebController: NSObject, ForceDarkCapable, WKNavigationDelegate, WKU
     /// nil follows the `web.forceDark` setting.
     var forceDarkOverride: Bool?
     var errorCount = 0
-    var picking = false
     @ObservationIgnored var log: [WebLogEntry] = []
     @ObservationIgnored var requests: [WebRequestEntry] = []
     @ObservationIgnored var logWindowStart = 0.0
@@ -102,13 +105,9 @@ final class WebController: NSObject, ForceDarkCapable, WKNavigationDelegate, WKU
         if panel == nil { listenForLocalFiles() }
         container.show(webView)
         webView.onQuote = { [weak self] in self?.model.addFrontToAgent() }
-        webView.onSelectionChange = { [weak self] selection, top in
+        webView.onScroll = { [weak self] in
             guard let self else { return }
-            if selection != nil, let top {
-                self.quoteButton.show(fromTop: top)
-            } else {
-                self.quoteButton.isHidden = true
-            }
+            NoteLayer.existing(for: self.itemID)?.refresh()
         }
         observations = [
             webView.observe(\.canGoBack, options: [.new]) { [weak self] view, _ in
@@ -309,6 +308,7 @@ final class WebController: NSObject, ForceDarkCapable, WKNavigationDelegate, WKU
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        pageChangedForNotes()
         model.viewerReady(itemID)
         if showingError {
             applyDark()
