@@ -210,10 +210,10 @@ extension AppModel {
     }
 
     /// The agent you were last looking at in this workspace: the tab most recently in front that has one running.
+    /// Notes belong to their workspace, so an agent in another one is no place for them.
     func lastLookedAtAgent() -> AgentSession? {
-        let sessions = activeAgentSessions()
-        let here = sessions.filter { $0.workspace.id == activeID }
-        guard !here.isEmpty else { return sessions.first }
+        let here = activeAgentSessions().filter { $0.workspace.id == activeID }
+        guard !here.isEmpty else { return nil }
         let groups = active.groupMRU.compactMap { active.group(id: $0) } + active.groups.filter { !active.groupMRU.contains($0.id) }
         for group in groups {
             for id in group.mru + group.tabs {
@@ -237,6 +237,8 @@ extension AppModel {
         }
         let terminal = session.item.id
         ComposeDrafts.shared.withoutNotes.remove(terminal)
+        // A box open on another terminal would take this as its ⌘↩ and send what's in it there.
+        if composingFor != terminal { composingFor = nil }
         _ = focusItem(terminal)
         if composingFor == terminal {
             // Open already. Asking again would send.

@@ -1662,11 +1662,12 @@ enum ControlHandler {
             return .object([:])
 
         case "review.send":
-            guard !model.active.review.isEmpty else { throw ControlFailure("There are no review comments to send") }
             if let target = request.args["item"]?.stringValue {
+                guard !(model.workspace(containing: target) ?? model.active).pendingNotes.isEmpty else { throw ControlFailure("There are no notes waiting to be sent") }
                 guard model.sendReview(to: target) else { throw ControlFailure("\(target) isn't a running agent. Run tiri items.") }
                 return .object(["sent": true])
             }
+            guard !model.active.pendingNotes.isEmpty else { throw ControlFailure("There are no notes waiting to be sent") }
             model.sendReview()
             return .object([:])
 

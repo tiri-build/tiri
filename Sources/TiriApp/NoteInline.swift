@@ -100,9 +100,16 @@ final class NoteInline {
         for (_, host) in hosts {
             guard let range = range(ofLine: host.line), let gap = gaps[host.line] else { continue }
             let last = max(NSMaxRange(range) - 1, range.location)
-            guard last < length else { continue }
-            layout.ensureLayout(forCharacterRange: range)
-            let fragment = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: last), effectiveRange: nil)
+            let fragment: NSRect
+            if last < length {
+                layout.ensureLayout(forCharacterRange: range)
+                fragment = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: last), effectiveRange: nil)
+            } else {
+                // The empty line after the last newline has no character to open space after, so the strip sits under it.
+                layout.ensureLayout(for: textView.textContainer!)
+                let extra = layout.extraLineFragmentRect
+                fragment = NSRect(x: extra.minX, y: extra.minY, width: extra.width, height: extra.height + gap)
+            }
             let frame = NSRect(x: textView.textContainerOrigin.x + 2, y: fragment.maxY + textView.textContainerOrigin.y - gap,
                                width: max(visible - 20, 240), height: gap)
             if host.view.frame != frame { host.view.frame = frame }

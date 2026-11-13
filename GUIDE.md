@@ -78,7 +78,7 @@ Terminals draw on the Mac's graphics chip with Metal, so heavy output doesn't ho
 
 ### Give agents lines, files and images
 
-**Selections.** Select something in a file, diff, rendered markdown, HTML file, web page or PDF. A **Quote in Agent** button appears beside it, and ⌘L or right-click do the same. With one agent running, the selection goes straight to it. With several, Tiri asks which one should get it, with the one you used last at the top, and then takes you there.
+**Selections.** Select something in a file, diff, rendered markdown, HTML file, web page or PDF. Press ⌘L, or right-click and choose **Quote in Agent**. With one agent running, the selection goes straight to it. With several, Tiri asks which one should get it, with the one you used last at the top, and then takes you there.
 
 What the agent receives depends on the agent and the source:
 
@@ -129,7 +129,7 @@ Reading a change usually raises several remarks. Sending each one as you go inte
 
 1. **On lines,** in a file or a diff: click the **+** beside the line under the pointer, or drag it across several. With lines selected, the + notes the selection. ⌥⌘L and **Add Note** in the right-click menu do the same.
 2. **On a page, a rendered document, a picture or a PDF:** press **Point** above it, or hold ⌥. What's under the pointer is outlined. Click to note it, or drag to note a region. On a page, ↑ and ↓ step out to what holds the element and back in. One press of Point is one pick, and Esc stops.
-3. Write your remark. Return adds it, ⌘↩ adds it and sends, and Esc puts the box away and keeps what you typed.
+3. Write your remark. Return adds it, ⌘↩ adds it and opens the box for sending, and Esc puts the box away and keeps what you typed.
 
 Each note gets a numbered mark where it was made. Click the mark to edit or delete it. Notes collect in the **Notes** section of the sidebar, across as many files as you like, and survive a relaunch. Click one there to go back to its place. If an agent moves the lines, the note follows them. If it rewrites them, the note says so when it's sent.
 

@@ -596,9 +596,11 @@ extension AppModel {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         // A week is plenty for an agent to have read it.
         let week = Date().addingTimeInterval(-7 * 24 * 3600)
+        // A note keeps its picture for as long as the note is kept.
+        let kept = Set(workspaces.flatMap { $0.review.compactMap { $0.spot?.picture } })
         for old in (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? [] {
             let modified = (try? old.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-            if let modified, modified < week { try? FileManager.default.removeItem(at: old) }
+            if let modified, modified < week, !kept.contains(old.path) { try? FileManager.default.removeItem(at: old) }
         }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd-HHmmss-SSS"

@@ -664,6 +664,13 @@ final class AppModel {
             controller.teardown()
             controllers[id] = nil
             runtimes[id] = nil
+            NoteLayer.forget(id)
+            NoteWriting.shared.pointing.remove(id)
+            if NoteWriting.shared.open?.item == id {
+                NoteWriting.shared.open = nil
+                NoteWriting.shared.text = ""
+            }
+            if composingFor == id { composingFor = nil }
         }
         updateDockBadge()
     }

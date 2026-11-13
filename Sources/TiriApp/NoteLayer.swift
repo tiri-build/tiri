@@ -49,6 +49,11 @@ final class NoteLayer: NSView {
     private static var layers: [ItemID: NoteLayer] = [:]
     private static var keyMonitor: Any?
 
+    /// Its tab is gone.
+    static func forget(_ item: ItemID) {
+        layers.removeValue(forKey: item)?.removeFromSuperview()
+    }
+
     static func existing(for item: ItemID) -> NoteLayer? {
         guard let layer = layers[item] else { return nil }
         if layer.surface == nil {
@@ -273,10 +278,12 @@ final class NoteLayer: NSView {
             guard NoteWriting.shared.pointing.contains(itemID) else { return false }
             AppModel.shared.togglePointing(itemID)
             return true
-        case 126:
-            depth += 1
-        case 125:
-            depth = max(depth - 1, 0)
+        case 126, 125:
+            // With only ⌥ held, ⌥↑ and ⌥↓ belong to whatever has the keyboard, unless that's this viewer.
+            if !NoteWriting.shared.pointing.contains(itemID) {
+                guard let holder = superview, let responder = window?.firstResponder as? NSView, responder.isDescendant(of: holder) else { return false }
+            }
+            depth = event.keyCode == 126 ? depth + 1 : max(depth - 1, 0)
         default:
             return false
         }
