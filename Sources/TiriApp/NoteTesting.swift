@@ -22,6 +22,14 @@ enum NoteTesting {
         case "esc":
             model.closeNote()
             return .object([:])
+        case "goto":
+            // What a click on a note in the list does.
+            guard let wanted = number(0).map({ Int($0) }), wanted >= 1, wanted <= model.active.review.count else { throw ControlHandler.ControlFailure("No note with that number.") }
+            model.openReviewComment(model.active.review[wanted - 1])
+            return .object([:])
+        case "sendall":
+            model.sendReview()
+            return .object([:])
         case "state":
             return .object([
                 "open": .string(writing.open?.anchor.description ?? ""),

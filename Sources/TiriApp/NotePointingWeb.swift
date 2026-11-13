@@ -110,6 +110,20 @@ enum NotePageScript {
             return rect.width || rect.height ? [rect.left, rect.top, rect.width, rect.height] : null;
           });
         },
+        reveal(query) {
+          if (query.x !== undefined) { scrollTo({ left: 0, top: Math.max(query.y - innerHeight / 3, 0), behavior: 'smooth' }); return true; }
+          let element = null;
+          if (query.line !== undefined) {
+            for (const block of document.querySelectorAll('[data-line]')) {
+              if (Number(block.dataset.lineEnd) + 1 >= query.line) { element = block; break; }
+            }
+          } else {
+            element = find(query);
+          }
+          if (!element) return false;
+          element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          return true;
+        },
         scroll() { return [scrollX, scrollY]; }
       };
     })();
@@ -201,7 +215,15 @@ final class WebNotes {
         }
     }
 
-    func rects(for anchors: [ReviewAnchor], reply: @escaping ([NSRect?]) -> Void) {
+    /// What the page is asked to find a note's thing by.
+    private func query(for anchor: ReviewAnchor) -> [String: Any] { queries(for: [anchor])[0] }
+
+    func reveal(_ anchor: ReviewAnchor) {
+        guard let data = try? JSONSerialization.data(withJSONObject: query(for: anchor)), let json = String(data: data, encoding: .utf8) else { return }
+        ask("window.__tiriNote.reveal(\(json))") { _ in }
+    }
+
+    private func queries(for anchors: [ReviewAnchor]) -> [[String: Any]] {
         var queries: [[String: Any]] = []
         for anchor in anchors {
             if let spot = anchor.spot {
@@ -219,6 +241,11 @@ final class WebNotes {
                 queries.append(["selector": ""])
             }
         }
+        return queries
+    }
+
+    func rects(for anchors: [ReviewAnchor], reply: @escaping ([NSRect?]) -> Void) {
+        let queries = queries(for: anchors)
         guard let data = try? JSONSerialization.data(withJSONObject: queries), let json = String(data: data, encoding: .utf8) else { return reply(anchors.map { _ in nil }) }
         ask("window.__tiriNote.rects(\(json))") { [weak self] value in
             guard let self, let list = value as? [Any], list.count == anchors.count else { return reply(anchors.map { _ in nil }) }
@@ -300,6 +327,8 @@ extension WebController: NoteSurface {
     func notesToMark() -> [ReviewComment] {
         model.reviewComments(on: notePath).filter { $0.spot != nil }
     }
+
+    func revealNote(_ anchor: ReviewAnchor) { pageNotes.reveal(anchor) }
 }
 
 // MARK: - A rendered document
@@ -333,5 +362,9 @@ extension MarkdownController: NoteSurface {
     func notesToMark() -> [ReviewComment] {
         guard noteWebView != nil else { return [] }
         return model.reviewComments(on: path).filter { $0.commit == nil && ($0.spot != nil || $0.firstLine != nil) }
+    }
+
+    func revealNote(_ anchor: ReviewAnchor) {
+        if noteWebView != nil { pageNotes.reveal(anchor) }
     }
 }

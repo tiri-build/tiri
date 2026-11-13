@@ -2007,3 +2007,7 @@
 "%@, %@" = "%@，%@";
 "line %lld" = "第 %lld 行";
 "lines %lld–%lld" = "第 %lld–%lld 行";
+"%lld sent" = "%lld 条已发送";
+"Fold the notes already sent" = "收起已发送的批注";
+"Show the notes already sent" = "显示已发送的批注";
+"Go to where this note was made" = "回到做这条批注的地方";

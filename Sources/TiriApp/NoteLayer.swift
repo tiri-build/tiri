@@ -25,12 +25,15 @@ protocol NoteSurface: ItemController {
     func finishNote(_ target: NoteTarget, reply: @escaping (ReviewAnchor) -> Void)
     /// The notes this viewer wants marked in the layer.
     func notesToMark() -> [ReviewComment]
+    /// Brings what a note is on into sight.
+    func revealNote(_ anchor: ReviewAnchor)
 }
 
 extension NoteSurface {
     var canPoint: Bool { true }
     func finishNote(_ target: NoteTarget, reply: @escaping (ReviewAnchor) -> Void) { reply(target.anchor) }
     func notesToMark() -> [ReviewComment] { [] }
+    func revealNote(_ anchor: ReviewAnchor) {}
 }
 
 extension ReviewComment {
@@ -281,6 +284,26 @@ final class NoteLayer: NSView {
 
     // MARK: Marks and the box
 
+    /// The note someone just came back to: its place is outlined for a moment, so the eye finds it.
+    private var lit: String?
+    private var litWork: DispatchWorkItem?
+
+    func light(_ commentID: String) {
+        lit = commentID
+        litWork?.cancel()
+        // The page may still be scrolling to it.
+        for delay in [0.15, 0.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.refresh() }
+        }
+        let work = DispatchWorkItem { [weak self] in
+            self?.lit = nil
+            self?.needsDisplay = true
+        }
+        litWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2, execute: work)
+        refresh()
+    }
+
     func rect(of commentID: String) -> NSRect? {
         marks.first { $0.comment.id == commentID }?.rect
     }
@@ -410,7 +433,11 @@ final class NoteLayer: NSView {
         }
         for mark in marks {
             // A spot or a region is nothing without its outline. An element is left as it looks.
-            if mark.comment.spot?.kind != .element, mark.comment.spot != nil { show(mark.rect, filled: false) }
+            if mark.comment.id == lit {
+                show(mark.rect, filled: true)
+            } else if mark.comment.spot?.kind != .element, mark.comment.spot != nil {
+                show(mark.rect, filled: false)
+            }
         }
         // Lines being noted are tinted by their own viewer. Anything else gets its outline here.
         if let openRect, let open = NoteWriting.shared.open, open.item == itemID, open.anchor.spot != nil || surface?.canPoint == true { show(openRect, filled: true) }

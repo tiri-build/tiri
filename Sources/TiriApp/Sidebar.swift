@@ -107,7 +107,7 @@ struct SidebarView: View {
                 }
                 if reviewOpen {
                     ReviewList()
-                        .frame(height: min(CGFloat(model.active.review.count) * 41 + 6, max(geometry.size.height * 0.28, 60)))
+                        .frame(height: min(CGFloat(ReviewList.rows(for: model.active.review)) * 41 + 6, max(geometry.size.height * 0.28, 60)))
                 }
             }
             ForEach(model.plugins.sections) { section in

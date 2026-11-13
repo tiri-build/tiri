@@ -198,4 +198,11 @@ extension PDFController: NoteSurface {
     func notesToMark() -> [ReviewComment] {
         AppModel.shared.reviewComments(on: path).filter { $0.spot != nil }
     }
+
+    func revealNote(_ anchor: ReviewAnchor) {
+        guard let spot = anchor.spot, let number = spot.page, let page = pdfView.document?.page(at: number - 1) else { return }
+        let box = page.bounds(for: .cropBox)
+        // A little above the place, so it isn't under the bar at the top.
+        pdfView.go(to: PDFDestination(page: page, at: NSPoint(x: box.minX, y: min(box.maxY - CGFloat(spot.y ?? 0) + 160, box.maxY))))
+    }
 }

@@ -161,7 +161,7 @@ extension AppModel {
         UserDefaults.standard.set(true, forKey: key)
         let keys = shortcutSymbol(for: "sendReview") ?? "⌥⇧⌘L"
         showToast(title: String(localized: "Your note is waiting"), detail: String(localized: "Add more, then send them together: \(keys), or with your next message in Write to Agent."),
-                  symbol: "text.bubble", tint: .accentColor, actionTitle: String(localized: "Send Now")) { [weak self] in self?.sendReview() }
+                  symbol: "text.bubble", tint: .accentColor, actionTitle: String(localized: "Write to Agent")) { [weak self] in self?.sendReview() }
     }
 
     func updateReviewComment(_ id: String, text: String) {
@@ -208,16 +208,40 @@ extension AppModel {
         reviewDidChange()
     }
 
-    /// With one agent running they go straight there. With several, you choose.
+    /// The agent you were last looking at in this workspace: the tab most recently in front that has one running.
+    func lastLookedAtAgent() -> AgentSession? {
+        let sessions = activeAgentSessions()
+        let here = sessions.filter { $0.workspace.id == activeID }
+        guard !here.isEmpty else { return sessions.first }
+        let groups = active.groupMRU.compactMap { active.group(id: $0) } + active.groups.filter { !active.groupMRU.contains($0.id) }
+        for group in groups {
+            for id in group.mru + group.tabs {
+                if let session = here.first(where: { $0.item.id == id }) { return session }
+            }
+        }
+        return here.first
+    }
+
+    /// The waiting notes go to the box where you write to an agent, on the agent you were last looking at.
+    /// Nothing is sent from here: the notes show there as a chip, there's room for your words, and ⌘↩ sends.
+    /// To send them to another agent, go to its tab: the notes follow.
     func sendReview() {
         guard !active.pendingNotes.isEmpty else {
             showToast(title: String(localized: "There are no notes to send"), detail: String(localized: "Click the + beside a line, or press ⌥⌘L on what you mean."), symbol: "text.bubble", tint: .secondary)
             return
         }
-        let count = active.pendingNotes.count
-        let question = count == 1 ? String(localized: "Which session should get 1 note?") : String(localized: "Which session should get \(count) notes?")
-        withAgent(asking: question) { [weak self] terminal, _ in
-            self?.deliverReview(to: terminal)
+        guard let session = lastLookedAtAgent() else {
+            showToast(title: String(localized: "No agent is running"), detail: String(localized: "Start one from the + button, then try again."), symbol: "sparkles", tint: .secondary)
+            return
+        }
+        let terminal = session.item.id
+        ComposeDrafts.shared.withoutNotes.remove(terminal)
+        _ = focusItem(terminal)
+        if composingFor == terminal {
+            // Open already. Asking again would send.
+            ComposeDrafts.shared.focusRequests += 1
+        } else {
+            composeToAgent()
         }
     }
 
@@ -376,35 +400,73 @@ extension AppModel {
         workspaces.flatMap { $0.reviewComments(on: path) }
     }
 
+    /// The tab or Peek already showing what a note is on, in the form it was made on: the page, the diff, the file.
+    private func itemShowing(_ comment: ReviewComment) -> ItemID? {
+        let wantsDiff = comment.commit != nil || comment.quoteIsDiff
+        for item in active.items + (active.peek.map { [$0] } ?? []) {
+            guard let controller = existingController(for: item.id) else { continue }
+            if let web = controller as? WebController {
+                if comment.spot != nil, web.notePath == comment.path { return item.id }
+                continue
+            }
+            if let diff = controller as? DiffController {
+                if wantsDiff, comment.spot == nil, diff.path == comment.path, diff.spec.commit == comment.commit { return item.id }
+                continue
+            }
+            guard item.filePath == comment.path, !wantsDiff else { continue }
+            // A pointed note is on something drawn. Lines are on text, or on a document made from it.
+            if comment.spot != nil ? controller is NoteSurface : true { return item.id }
+        }
+        return nil
+    }
+
+    /// A click on a note goes back to where it was made, with the place in sight and its mark lit for a moment.
     func openReviewComment(_ comment: ReviewComment) {
         // A sent note whose lines changed: what the agent did there is the thing to look at.
         if comment.sent != nil, NoteWriting.shared.changed.contains(comment.id), hasChanges(comment.path) {
             peekDiff(DiffSpec(path: comment.path), takeFocus: true)
             return
         }
-        if let address = comment.spot?.address {
-            for item in active.items {
-                if let web = existingController(for: item.id) as? WebController, web.currentURLString == address {
-                    _ = focusItem(item.id)
-                    return
-                }
-            }
-            if let url = URL(string: address) { NSWorkspace.shared.open(url) }
-            return
-        }
-        let line = (try? String(contentsOfFile: comment.path, encoding: .utf8)).flatMap { text -> Int? in
+        let line = comment.spot != nil ? nil : (try? String(contentsOfFile: comment.path, encoding: .utf8)).flatMap { text -> Int? in
             if case .lines(let range) = ReviewLocator.place(of: comment, in: text) { return range.lowerBound }
             return nil
         }
+        if let id = itemShowing(comment) {
+            if active.peek?.id == id {
+                setPeekKeyboard(true)
+                requestFocus()
+            } else {
+                _ = focusItem(id)
+            }
+            showNote(comment, in: id, line: line)
+            return
+        }
+        if let address = comment.spot?.address {
+            if let url = URL(string: address) { NSWorkspace.shared.open(url) }
+            return
+        }
         if let commit = comment.commit {
             peekDiff(DiffSpec(path: comment.path, commit: commit), takeFocus: true)
-            return
-        }
-        if comment.quoteIsDiff, hasChanges(comment.path) {
+        } else if comment.quoteIsDiff, hasChanges(comment.path) {
             peekDiff(DiffSpec(path: comment.path), takeFocus: true)
-            return
+        } else {
+            open(path: comment.path, line: line, intent: .peek(takeFocus: true))
         }
-        open(path: comment.path, line: line, intent: .peek(takeFocus: true))
+        // Whatever just opened needs a moment to have something to show the mark on.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            guard let self, let id = self.itemShowing(comment) else { return }
+            self.showNote(comment, in: id, line: line)
+        }
+    }
+
+    private func showNote(_ comment: ReviewComment, in item: ItemID, line: Int?) {
+        guard let controller = existingController(for: item) else { return }
+        if let surface = controller as? NoteSurface, !controller.notesSitInText {
+            surface.revealNote(comment.anchor)
+            NoteLayer.existing(for: item)?.light(comment.id)
+        } else if let line {
+            controller.goTo(line: line, col: nil)
+        }
     }
 }
 
@@ -462,15 +524,51 @@ struct ReviewHeaderActions: View {
 struct ReviewList: View {
     @Environment(AppModel.self) private var model
     @Environment(\.windowScope) private var scope
+    @AppStorage("notes.sentOpen") private var sentOpen = false
     /// This window's workspace, which may not be the one in front.
     private var here: WindowModel { WindowModel(app: model, scope: scope) }
 
+    /// How many rows the list has for these notes, for giving it its height.
+    static func rows(for notes: [ReviewComment]) -> Int {
+        let sent = notes.filter { $0.sent != nil }.count
+        guard sent > 0 else { return notes.count }
+        return notes.count - sent + 1 + (UserDefaults.standard.bool(forKey: "notes.sentOpen") ? sent : 0)
+    }
+
     var body: some View {
+        let sent = here.active.review.filter { $0.sent != nil }
         ScrollView {
             LazyVStack(spacing: 1) {
-                // What's waiting first, in the order of its numbers.
-                ForEach(here.active.pendingNotes + here.active.review.filter { $0.sent != nil }) { comment in
+                // What's waiting, in the order of its numbers.
+                ForEach(here.active.pendingNotes) { comment in
                     ReviewRow(comment: comment, number: here.active.noteNumber(comment.id))
+                }
+                // What's gone to an agent is out of the way, one row to unfold.
+                if !sent.isEmpty {
+                    Button {
+                        sentOpen.toggle()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8, weight: .bold))
+                                .rotationEffect(.degrees(sentOpen ? 90 : 0))
+                                .frame(width: 16)
+                            Text("\(sent.count) sent")
+                                .font(.system(size: 11.5))
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 7)
+                        .frame(height: 40)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(sentOpen ? "Fold the notes already sent" : "Show the notes already sent")
+                    if sentOpen {
+                        ForEach(sent) { comment in
+                            ReviewRow(comment: comment, number: nil)
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 8)

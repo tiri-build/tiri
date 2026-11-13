@@ -382,13 +382,25 @@ struct NotesListed: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .textSelection(.enabled)
-                            if !note.text.isEmpty {
-                                Text(verbatim: note.anchor.description)
-                                    .font(.system(size: 10.5))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
+                            // Where it was made, and the way back there.
+                            Button {
+                                model.openReviewComment(note)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    if !note.text.isEmpty {
+                                        Text(verbatim: note.anchor.description)
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                    }
+                                    Image(systemName: "arrow.up.forward").font(.system(size: 8.5, weight: .semibold))
+                                }
+                                .font(.system(size: 10.5))
+                                .foregroundStyle(.secondary)
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+                            .help("Go to where this note was made")
+                            .accessibilityLabel("Go to Note")
                         }
                         // What a pointed note points at, with the place marked.
                         if let picture = note.spot?.picture, let image = NSImage(contentsOfFile: picture) {
