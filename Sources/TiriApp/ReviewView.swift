@@ -19,7 +19,7 @@ import TiriCore
 
     var open: Open?
     var text = ""
-    /// Items where pointing is switched on, until Esc or the button.
+    /// Items where pointing is switched on, until something is picked, Esc or the button.
     var pointing: Set<ItemID> = []
     /// Sent notes whose lines an agent has since changed.
     var changed: Set<String> = []
@@ -96,7 +96,8 @@ extension AppModel {
         if let id = open.editing {
             updateReviewComment(id, text: text)
         } else {
-            addReviewComment(open.anchor.comment(text: text), in: workspace(containing: open.item)?.id)
+            // On its way to the box for writing to the agent, nothing needs saying about where it goes next.
+            addReviewComment(open.anchor.comment(text: text), in: workspace(containing: open.item)?.id, hinting: !sending)
         }
         existingController(for: open.item)?.focus()
         if sending { sendReview() }
@@ -125,7 +126,7 @@ extension AppModel {
         if let item { existingController(for: item)?.focus() }
     }
 
-    /// The button, and ⌥⌘L where there are no lines: the next click notes what it's on, until Esc.
+    /// The button, and ⌥⌘L where there are no lines: the next click notes what it's on, and pointing ends there.
     func togglePointing(_ item: ItemID? = nil) {
         guard let id = item ?? (active.peek ?? active.activeItem)?.id else { return }
         let writing = NoteWriting.shared
@@ -146,12 +147,12 @@ extension AppModel {
         return nil
     }
 
-    func addReviewComment(_ comment: ReviewComment, in workspaceID: WorkspaceID? = nil) {
+    func addReviewComment(_ comment: ReviewComment, in workspaceID: WorkspaceID? = nil, hinting: Bool = true) {
         update(workspace: workspaceID ?? activeID) { $0.review.append(comment) }
         SidebarSection.review.open()
         scheduleSave()
         reviewDidChange()
-        hintAtSendingNotes()
+        if hinting { hintAtSendingNotes() }
     }
 
     /// Once: a note that's been added says nothing about where it goes next.

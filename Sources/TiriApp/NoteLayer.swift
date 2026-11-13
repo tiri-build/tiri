@@ -231,6 +231,8 @@ final class NoteLayer: NSView {
             }
             self.hover = nil
             self.depth = 0
+            // One press of the button is one thing pointed at: the page takes clicks again once it's picked.
+            if NoteWriting.shared.pointing.remove(self.itemID) != nil { self.pointingChanged() }
             surface.finishNote(target) { anchor in
                 AppModel.shared.beginNote(anchor, in: self.itemID, at: target.rect)
             }
@@ -461,7 +463,16 @@ final class NoteLayer: NSView {
         let label = text as NSString
         let size = label.size(withAttributes: attributes)
         var box = NSRect(x: rect.minX - 1, y: rect.minY - size.height - 7, width: size.width + 10, height: size.height + 5)
-        if box.minY < 2 { box.origin.y = rect.maxY + 3 }
+        if rect.width >= box.width + 60, rect.height >= box.height + 6 {
+            // Inside the outline, at its top right: what's above the element stays readable, and the right end of
+            // a block is where it's least likely to have anything of its own.
+            box.origin = NSPoint(x: rect.maxX - box.width - 1, y: rect.minY + 1)
+        } else if rect.maxX + box.width + 8 <= bounds.width {
+            // Something small: beside it, where a line of text above or below it isn't.
+            box.origin = NSPoint(x: rect.maxX + 5, y: rect.midY - box.height / 2)
+        } else if box.minY < 2 {
+            box.origin.y = rect.maxY + 3
+        }
         box.origin.x = min(max(box.minX, 2), max(bounds.width - box.width - 2, 2))
         NSColor.controlAccentColor.setFill()
         NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4).fill()
