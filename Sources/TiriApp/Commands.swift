@@ -1795,6 +1795,10 @@ enum ControlHandler {
         case "dev-press":
             // A SwiftUI button takes no made-up click. This does what pressing an attached file in the box does.
             guard AppModel.isTestCopy else { throw ControlFailure("Only in a test copy.") }
+            if request.args["name"]?.stringValue == "notes" {
+                ComposeDrafts.shared.lookingAt = ComposeDrafts.shared.lookingAt == ComposeDrafts.notesListed ? nil : ComposeDrafts.notesListed
+                return .object([:])
+            }
             guard let name = request.args["name"]?.stringValue, let terminal = model.composingFor,
                   let path = (ComposeDrafts.shared.attached[terminal] ?? []).first(where: { ($0 as NSString).lastPathComponent == name }) else {
                 throw ControlFailure("No such file in the box.")

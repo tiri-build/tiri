@@ -1985,8 +1985,11 @@
 "note" = "則註記";
 "notes" = "則註記";
 "Left out" = "這次不傳";
-"These notes stay behind. Click to send them with this message" = "這些註記這次不傳。按一下可隨這則訊息一起傳送";
-"These notes go with this message. Click to leave them out" = "這些註記會隨這則訊息送出。按一下可留下不傳";
+"See these notes" = "查看這些批註";
+"Send them with this message" = "隨這則訊息送出";
+"Leave them out of this message" = "這次不送";
+"Delete this note" = "刪除這則批註";
+"Delete note %lld" = "刪除批註 %lld";
 "1 note goes with this message" = "1 則註記會隨這則訊息送出";
 "%lld notes go with this message" = "%lld 則註記會隨這則訊息送出";
 "Click what you mean, or drag across it. Esc stops" = "按一下你指的東西，或拖過它。按 Esc 停止";

@@ -312,7 +312,8 @@ struct NoteCard: View {
     }
 }
 
-/// In the box for writing to an agent: the notes that will go with the message. A click leaves them out, or puts them back.
+/// In the box for writing to an agent: the notes that will go with the message. A click lists them above the box,
+/// to read and to delete. Its × leaves them out of this message, as any attachment's does, and puts them back.
 struct NotesChip: View {
     let terminal: ItemID
     @Environment(AppModel.self) private var model
@@ -320,30 +321,108 @@ struct NotesChip: View {
     var body: some View {
         let notes = (model.workspace(containing: terminal) ?? model.active).pendingNotes
         let left = ComposeDrafts.shared.withoutNotes.contains(terminal)
-        Button {
-            if left { ComposeDrafts.shared.withoutNotes.remove(terminal) } else { ComposeDrafts.shared.withoutNotes.insert(terminal) }
-        } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    NotePinView(number: notes.count)
-                    Text(notes.count == 1 ? String(localized: "note") : String(localized: "notes"))
-                        .font(.system(size: 11.5, weight: .medium))
+        let listed = ComposeDrafts.shared.lookingAt == ComposeDrafts.notesListed
+        ZStack(alignment: .topTrailing) {
+            Button {
+                ComposeDrafts.shared.lookingAt = listed ? nil : ComposeDrafts.notesListed
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        NotePinView(number: notes.count)
+                        Text(notes.count == 1 ? String(localized: "note") : String(localized: "notes"))
+                            .font(.system(size: 11.5, weight: .medium))
+                    }
+                    Text(verbatim: left ? String(localized: "Left out") : (notes.first?.summary ?? ""))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .padding(.trailing, 10)
                 }
-                Text(verbatim: left ? String(localized: "Left out") : (notes.first?.summary ?? ""))
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                .padding(.horizontal, 9)
+                .frame(width: 150, height: 48, alignment: .leading)
+                .background(Color.accentColor.opacity(left ? 0.04 : 0.12), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Color.accentColor.opacity(listed ? 1 : (left ? 0.15 : 0.4)), lineWidth: listed ? 2 : 1))
+                .opacity(left ? 0.6 : 1)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 9)
-            .frame(width: 150, height: 48, alignment: .leading)
-            .background(Color.accentColor.opacity(left ? 0.04 : 0.12), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Color.accentColor.opacity(left ? 0.15 : 0.4)))
-            .opacity(left ? 0.6 : 1)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .help("See these notes")
+            .accessibilityLabel(notes.count == 1 ? String(localized: "1 note goes with this message") : String(localized: "\(notes.count) notes go with this message"))
+            Button {
+                if left { ComposeDrafts.shared.withoutNotes.remove(terminal) } else { ComposeDrafts.shared.withoutNotes.insert(terminal) }
+            } label: {
+                Image(systemName: left ? "arrow.uturn.backward.circle.fill" : "xmark.circle.fill").font(.system(size: 13)).symbolRenderingMode(.hierarchical)
+            }
+            .buttonStyle(.plain)
+            .padding(2)
+            .help(left ? String(localized: "Send them with this message") : String(localized: "Leave them out of this message"))
+            .accessibilityLabel(left ? String(localized: "Send them with this message") : String(localized: "Leave them out of this message"))
         }
-        .buttonStyle(.plain)
-        .help(left ? String(localized: "These notes stay behind. Click to send them with this message") : String(localized: "These notes go with this message. Click to leave them out"))
-        .accessibilityLabel(notes.count == 1 ? String(localized: "1 note goes with this message") : String(localized: "\(notes.count) notes go with this message"))
+    }
+}
+
+/// Above the box: every waiting note in full, with what it's on, and a way to delete each.
+struct NotesListed: View {
+    let terminal: ItemID
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let workspace = model.workspace(containing: terminal) ?? model.active
+        let notes = workspace.pendingNotes
+        // As tall as its notes, and scrolling only once there are more than fit above the box.
+        let rows = VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
+                    if index > 0 { Divider().opacity(0.5) }
+                    HStack(alignment: .top, spacing: 9) {
+                        NotePinView(number: index + 1)
+                        VStack(alignment: .leading, spacing: 3) {
+                            // A note that only points has no words, and then where it points says it.
+                            Text(verbatim: note.text.isEmpty ? note.anchor.description : note.text)
+                                .font(.system(size: 12.5))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .textSelection(.enabled)
+                            if !note.text.isEmpty {
+                                Text(verbatim: note.anchor.description)
+                                    .font(.system(size: 10.5))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                        }
+                        // What a pointed note points at, with the place marked.
+                        if let picture = note.spot?.picture, let image = NSImage(contentsOfFile: picture) {
+                            Image(nsImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 64, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(.quaternary))
+                                .accessibilityHidden(true)
+                        }
+                        Button {
+                            model.removeReviewComment(note.id)
+                            if notes.count == 1 { ComposeDrafts.shared.lookingAt = nil }
+                        } label: {
+                            Image(systemName: "trash").font(.system(size: 11.5)).frame(width: 22, height: 22).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .help("Delete this note")
+                        .accessibilityLabel(Text("Delete note \(index + 1)"))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                }
+            }
+        ScrollView { rows }
+            .frame(maxHeight: 300)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: 688)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(.quaternary))
+        .shadow(color: .black.opacity(0.3), radius: 16, y: 6)
+        .transition(.opacity)
     }
 }
 

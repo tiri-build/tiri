@@ -1985,8 +1985,11 @@
 "note" = "条批注";
 "notes" = "条批注";
 "Left out" = "这次不发";
-"These notes stay behind. Click to send them with this message" = "这些批注这次不发。点按可随这条消息一起发送";
-"These notes go with this message. Click to leave them out" = "这些批注会随这条消息发出。点按可留下不发";
+"See these notes" = "查看这些批注";
+"Send them with this message" = "随这条消息发出";
+"Leave them out of this message" = "这次不发";
+"Delete this note" = "删除这条批注";
+"Delete note %lld" = "删除批注 %lld";
 "1 note goes with this message" = "1 条批注会随这条消息发出";
 "%lld notes go with this message" = "%lld 条批注会随这条消息发出";
 "Click what you mean, or drag across it. Esc stops" = "点按你指的东西，或拖过它。按 Esc 停止";

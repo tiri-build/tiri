@@ -25,6 +25,8 @@ import TiriCore
     static let opensToKnowIt = 3
     /// The attached file being looked at, if one is.
     var lookingAt: String?
+    /// What `lookingAt` holds while the waiting notes are listed above the box. No file has this path.
+    static let notesListed = "\u{0}notes"
 }
 
 private extension Array {
@@ -320,7 +322,9 @@ struct AgentComposer: View {
             stoodAside
         } else {
             VStack(spacing: 8) {
-                if let path = drafts.lookingAt, (drafts.attached[terminal] ?? []).contains(path) {
+                if drafts.lookingAt == ComposeDrafts.notesListed, model.notesWaiting(for: terminal) > 0 {
+                    NotesListed(terminal: terminal)
+                } else if let path = drafts.lookingAt, (drafts.attached[terminal] ?? []).contains(path) {
                     looking(at: path)
                 }
                 box
