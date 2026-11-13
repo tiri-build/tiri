@@ -1,6 +1,6 @@
 # Tiri
 
-**A Mac workspace for coding agents, and the only one you can change by asking.**
+**A Mac workspace for coding agents. Change it by asking, down to its source.**
 
 ![Keep your agent. Get everything around it. A real Tiri window: four workspaces, Grok asking for you in one, Claude Code in Tiri's own source having opened the features page as a Peek: a workspace for each task, not just code, the Peek, your agent drives Tiri, it improves itself. In the corner, the Change Tiri box.](.github/readme/tiri.png)
 
@@ -11,7 +11,7 @@
 | An AI editor | Cursor, Windsurf, Zed | **Your agent.** Theirs comes first, and yours gets a drawer under the editor. |
 | The vendor's app | Claude Code desktop, Codex app | **Every other agent,** and the CLI you set up. |
 | An agent manager | Conductor, Superset, Emdash | **Your repo as you use it.** Every job becomes a task in a fresh worktree. |
-| A terminal | cmux, Warp, herdr, Ghostty + tmux | **Everything around the agent.** The terminal comes first and everything else sits on the side, a wrong path in its output leads nowhere, and an agent starts wherever your shell happens to be. |
+| A terminal | cmux, Warp, Ghostty + tmux | **Everything around the agent.** The terminal comes first and everything else sits on the side, a wrong path in its output leads nowhere, and an agent starts wherever your shell happens to be. |
 
 **Tiri gives up none of these.**
 
@@ -47,12 +47,13 @@ Everyone works differently, so Tiri is yours to change. Not a setting, and not a
 ## What you get
 
 - **Every agent at a glance:** what each one is doing, and which one needs you.
+- **Write to your agent in a real box.** ⌘↩ opens it at the terminal's foot, for words, pictures, files and long pastes. If the agent asks something meanwhile, your message waits.
 - **Files, diffs and pages are tabs**, equal to terminals. There's no terminal drawer.
 - **Agents outlive the app.** Quitting, crashing or a dropped server connection doesn't stop them.
 - **Your dev servers in one place.** ▶ Start runs each workspace's servers and start scripts, and every agent uses the same ones, so none starts a second copy.
 - **Folder first:** nothing starts until you say where, so an agent never works in the wrong place.
 - **Per-turn diffs** show what one prompt changed.
-- **Notes on anything:** click the + beside a line, or point at an element of a page or a spot on a picture or PDF, and say what's wrong. Notes collect across files and go to the agent as one message.
+- **Notes on anything:** point at a spot on a picture or PDF, an element of a page, or click the + beside a line, and say what's wrong. Notes collect across files and go to the agent with your message.
 - **⌘L** quotes a selection to your agent, as a real mention in Claude Code.
 
 ## What Tiri believes
@@ -60,7 +61,7 @@ Everyone works differently, so Tiri is yours to change. Not a setting, and not a
 - **The agent types, and you read and judge.** Everything serves reading first, so there's no AI ghost text.
 - **No AI of its own.** Tiri sells nothing, promotes nothing and never nags.
 - **People don't operate Git; agents do.** Fetch, pull and push take one click. Anything beyond that is a request to an agent.
-- **Nothing goes to an agent without your say-so.** Reviews, Undo and Ask wait in its input until you press Return.
+- **Nothing goes to an agent without your say-so.** Notes, Undo and Ask wait until you send them.
 - **Never interrupt.** Alerts never reorder your tabs, and Esc on a Peek never reaches the agent.
 - **Whatever you can do, an agent can do** through the `tiri` command.
 - **Settings have two ways in: the screen and your agent.** You never edit a JSON file.

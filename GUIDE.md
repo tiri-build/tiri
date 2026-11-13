@@ -58,7 +58,7 @@ Outside Tiri, these hooks do nothing and print nothing, so they're safe to leave
 
 There's one list of agents, in **Settings → Agents** or under **Manage Agents…** in the + menu. Switch off the ones you don't use. If you only use Claude Code, only Claude Code appears in the + menu, on the start screen, in the Ask buttons and in the command palette. Turning an agent off only stops Tiri offering it, so sessions already running carry on. Agents can do the same with `tiri agents off codex`.
 
-Press **Add an Agent** to add any other command. You can hand it lines, files, review comments and problems as plain text. Without more setup, Tiri can't track its status exactly or resume a conversation by ID, though you can give it a resume command.
+Press **Add an Agent** to add any other command. You can hand it lines, files, notes and problems as plain text. Without more setup, Tiri can't track its status exactly or resume a conversation by ID, though you can give it a resume command.
 
 To support a new agent fully, add one entry to `AgentCatalog` in `Sources/TiriCore/Agents.swift`. That entry says how to recognize the agent, write a mention, resume it, install hooks and read their payloads. Everything else reads from it.
 
@@ -123,17 +123,19 @@ Tiri only reads the agents' own files, and what it writes for reading stays priv
 
 ## Reviewing their work
 
-### Leave review comments, then send them together
+### Leave notes, then send them together
 
-Reading a change usually raises several remarks. Sending each one as you go interrupts both you and the agent, so Tiri collects them.
+Reading a change usually raises several remarks. Sending each one as you go interrupts both you and the agent, so Tiri collects them. A note is made the same way on anything:
 
-1. Select lines in a file or diff and press **Comment**, or ⌥⌘L, or right-click. With nothing selected, the comment goes on the cursor's line. Rendered markdown, web pages and PDFs work too.
-2. Write your remark. Return adds it, and ⇧Return starts a new line.
-3. A mark appears beside the line. Click it to edit or delete the comment.
+1. **On lines,** in a file or a diff: click the **+** beside the line under the pointer, or drag it across several. With lines selected, the + notes the selection. ⌥⌘L and **Add Note** in the right-click menu do the same.
+2. **On a page, a rendered document, a picture or a PDF:** press **Point** above it, or hold ⌥. What's under the pointer is outlined. Click to note it, or drag to note a region. On a page, ↑ and ↓ step out to what holds the element and back in. One press of Point is one pick, and Esc stops.
+3. Write your remark. Return adds it, ⌘↩ adds it and sends, and Esc puts the box away and keeps what you typed.
 
-Comments collect in the **Review** section of the sidebar, across as many files as you like, and survive a relaunch. If an agent moves the lines, the comment follows them. If it rewrites them, the comment says so when it's sent.
+Each note gets a numbered mark where it was made. Click the mark to edit or delete it. Notes collect in the **Notes** section of the sidebar, across as many files as you like, and survive a relaunch. Click one there to go back to its place. If an agent moves the lines, the note follows them. If it rewrites them, the note says so when it's sent.
 
-Press the paper plane, or ⌥⇧⌘L, to put every comment into one agent's input as one message, each beside the code it's about. Nothing is sent until you press Return in that session, so you can add to it first. Agents can use the same list with `tiri review`.
+Press the paper plane, or ⌥⇧⌘L, and the box for [writing to an agent](#files-from-outside-tiri) opens on the agent you last looked at, holding the notes. Click them there to read one or leave one out, add words of your own, and ⌘↩ sends it all as one message. Each note goes beside the code it's about, and a note made by pointing carries a picture with the place marked. Nothing is sent before that.
+
+Sent notes fold into one row of the list and stay outlined in place, with a tick once the agent has changed their lines. **Clear Sent Notes** removes them. Agents can use the same list with `tiri review`.
 
 ### Undo or ask about a single change
 
@@ -365,7 +367,7 @@ Add `--errors` or `--failed` to see only what's wrong, and `--item` when several
 Beside the address bar:
 
 - **An error count** appears when the page has errors. Click it to quote them in your agent.
-- **◎** lets you point at something on the page. Click an element, and your agent gets its location and HTML. Esc cancels. Scripts on the page can't detect that you're picking.
+- **Point** lets you note something on the page, as in [Leave notes](#leave-notes-then-send-them-together). Your agent gets the element's location, its words and a picture with it marked. Scripts on the page can't detect that you're pointing.
 - **↗** moves the page to your own browser, where you're signed in; for a file, it opens your editor. Hold it, or right-click it, for the rest: your editor, **Show in Finder**, and **Always Open github.com in Chrome**, or whichever site and browser it is. From then on, links to that site go straight there, whether from a terminal, a page, a document or an agent's `tiri preview`. A note says where each one went, with **Open Here** for the times you want it in Tiri. **Settings → General** lists these sites.
 
 ---
@@ -374,7 +376,7 @@ Beside the address bar:
 
 Choose **File → Connect to Server…**, the workspaces' + menu, or the command palette (typing `ssh` finds it), or run `tiri remote connect <host> [folder]`. Folders you've opened before come first; otherwise pick a host from your `~/.ssh/config` or type `user@host`, then pick a folder. It becomes a workspace like any other, starting with a terminal there. If you have servers, an empty tab offers it too, and typing `ssh <host>` in a terminal here asks once whether to open that server as a workspace.
 
-Everything works as it does locally: the tree, quick open, ⌘-click, the Peek, Changes, search, language servers, review comments and agents, which run on the server. `tiri open report.md` in a terminal there floats a Peek on your Mac.
+Everything works as it does locally: the tree, quick open, ⌘-click, the Peek, Changes, search, language servers, notes and agents, which run on the server. `tiri open report.md` in a terminal there floats a Peek on your Mac.
 
 - **Agents keep working when your lid closes.** Programs run under a small helper on the server. When the connection or Tiri comes back, each terminal reattaches with nothing lost. Saves made while you're disconnected wait, then go through.
 - **There's almost nothing to install.** Tiri puts one static program of about 90 KB in `~/.tiri` on the server. It runs on Linux (x86-64 or ARM) and macOS, and needs no root, compiler or Node. Other systems still get terminals and files, but programs won't survive a dropped connection.
@@ -467,7 +469,7 @@ Terminals, files and pages are all tabs. Drag tabs to reorder them, move them be
 
 **File → New Window** (⇧⌘N), or **Open in New Window** on a workspace in the sidebar, gives a workspace a window of its own, with its own sidebar, Changes and terminals. Whatever you do acts on the window in front. A workspace is in one window at a time, so choosing one that's open elsewhere brings its window forward, marked in the switcher with a small window. Closing a window leaves its workspace running in the switcher, and windows come back after a relaunch. Agents use `tiri window new [<workspace>]`, `tiri window list`, `focus` and `close`.
 
-The sidebar's sections (Explorer, Changes, Agents, Review, Open Items) each fold when you click their names. Tiri remembers which are folded, and the open sections take the room.
+The sidebar's sections (Explorer, Changes, Agents, Notes, Open Items) each fold when you click their names. Tiri remembers which are folded, and the open sections take the room.
 
 In the explorer, a single click previews a file and a double-click keeps it open. Enter renames, Space previews, ⌘↓ opens and ⌘⌫ moves to the Trash. Drag a file into a terminal to insert its shell-quoted path.
 
@@ -497,7 +499,7 @@ Shortcuts follow Cursor. You can change any of them in Settings, or by asking yo
 | Past conversations | ⇧⌘H |
 | Write to the agent in this terminal / send | ⌘↩ / ⌘↩ |
 | Quote in agent / add files | ⌘L / ⇧⌘L |
-| Add review comment / send all | ⌥⌘L / ⌥⇧⌘L |
+| Add a note / send notes | ⌥⌘L / ⌥⇧⌘L |
 | Find in the current item | ⌘F |
 | Search in files | ⌘⇧F |
 | Go to definition / references / back | F12 / ⇧F12 / ⌃- |

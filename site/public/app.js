@@ -1136,7 +1136,7 @@
       sentences.prepend(li);
     });
     const n = $$("li", sentences).length;
-    versionEl.textContent = `Tiri 0.2 with ${n} change${n === 1 ? "" : "s"}`;
+    versionEl.textContent = `Tiri 0.5 with ${n} change${n === 1 ? "" : "s"}`;
   }
   async function toggleKept(c) {
     if (["building", "ready", "trying"].includes(phase)) return;
