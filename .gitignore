@@ -73,5 +73,9 @@ site/public/download/
 site/public/update.json
 site/public/_redirects
 
+# The site's Chinese pages, written by site/i18n/build.mjs
+site/public/zh-hans/
+site/public/zh-hant/
+
 # Local test log, not part of the repo
 PROGRESS.md

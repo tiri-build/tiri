@@ -445,7 +445,8 @@ h1, h2 { font-family: var(--display); font-weight: 620; letter-spacing: -0.025em
 }
 @media (max-width: 760px) {
   body { font-size: 16px; }
-  .nav nav a:not(.nav-get):not(.nav-github) { display: none; }
+  .nav nav a:not(.nav-get):not(.nav-github):not(.nav-lang) { display: none; }
+  .nav nav { gap: 18px; }
   .nav nav a.nav-github span { display: none; }
   .chapters { grid-template-columns: 1fr 1fr; gap: 16px; }
   .chapters span { display: none; }
@@ -484,6 +485,26 @@ h1, h2 { font-family: var(--display); font-weight: 620; letter-spacing: -0.025em
 .foot .f-links a { color: var(--dim); text-decoration: none; }
 .foot .f-links a:hover { color: var(--text); }
 @media (max-width: 760px) { .foot .f-links { margin-left: 0; flex-wrap: wrap; } }
+.foot { flex-wrap: wrap; row-gap: 12px; }
+.foot .f-lang { flex-basis: 100%; display: flex; gap: 18px; }
+.foot .f-lang a { color: var(--dim); text-decoration: none; }
+.foot .f-lang a:hover, .foot .f-lang a[aria-current] { color: var(--text); }
+
+/* ---------- Chinese pages ---------- */
+/* The display face has no Chinese, so headings fall through to the system's, which wants looser lines and no
+   tightening. A Chinese character is two "ch" wide, and a line never starts with a full stop or comma. */
+:lang(zh) { line-break: strict; }
+:lang(zh) h1, :lang(zh) h2 { letter-spacing: 0; line-height: 1.16; font-weight: 600; word-break: keep-all; }
+/* Headings break only between phrases: after punctuation, or where a translation has a <wbr>. */
+:lang(zh) p, :lang(zh) figcaption, :lang(zh) .feats span { text-wrap: pretty; }
+:lang(zh) .alt figcaption b, :lang(zh) .brand { letter-spacing: 0; }
+:lang(zh) .compare h2, :lang(zh) .peek h2, :lang(zh) .get h2, :lang(zh) .change-sec h2 { max-width: 30ch; }
+:lang(zh) .alt-tiri figcaption { max-width: 60ch; }
+:lang(zh) .peek-copy p, :lang(zh) .get p { max-width: 56ch; }
+:lang(zh) .change-copy p { max-width: 80ch; }
+:lang(zh) .yours-copy p { max-width: 48ch; }
+:lang(zh) .sec h4, :lang(zh) .paper h6, :lang(zh) .v-page h6 { letter-spacing: 0; }
+:lang(zh) .paper h6 { font-size: 10px; }
 /* as in Tiri: the Explorer gives up room so the other sections stay visible */
 .side .sec { flex-shrink: 0; }
 .side .sec[data-sec="explorer"] { flex-shrink: 1; min-height: 70px; overflow: hidden; }

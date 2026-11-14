@@ -1,3 +1,5 @@
+**English** · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
+
 # Tiri
 
 **A Mac workspace for coding agents. Change it by asking, down to its source.**

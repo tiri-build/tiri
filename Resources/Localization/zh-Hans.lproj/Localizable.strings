@@ -1042,7 +1042,7 @@
 "Keep" = "保留";
 "Ready to try: %@" = "可以试用：%@";
 "Give Up" = "放弃";
-"%@ needs you: %@" = "%@ 需要你：%@";
+"%@ needs you: %@" = "%@ 在等你：%@";
 "Changing Tiri: %@" = "正在修改 Tiri：%@";
 "Making a copy of Tiri with that change" = "正在生成带有这项更改的 Tiri";
 "%@ does your change itself now: %@" = "%@ 现在自带你的更改：%@";
@@ -1054,7 +1054,7 @@
 "Tiri %@ with 1 change" = "Tiri %@，含 1 项更改";
 "Tiri %@ with %lld changes" = "Tiri %@，含 %lld 项更改";
 "Another change is being made" = "另一项更改正在进行";
-"What do you want Tiri to do differently?" = "你想让 Tiri 有什么不同？";
+"What do you want Tiri to do differently?" = "想让 Tiri 改成什么样？";
 "Show how long each agent has been working" = "显示每个智能体已经工作了多久";
 "Put Changes above Explorer in the sidebar" = "在边栏中把“更改”放在“文件”上方";
 "ready to try" = "可以试用";
@@ -1087,25 +1087,25 @@
 
 /* YourTiriViews.swift */
 "%@. %@" = "%@。%@";
-"%@, check passed. Tiri reopens with this, and your agents keep running." = "%@，检查通过。Tiri 会带着它重新打开，你的智能体会继续运行。";
-"%@, check failed. Tiri reopens with this, and your agents keep running." = "%@，检查未通过。Tiri 会带着它重新打开，你的智能体会继续运行。";
-"%@. Tiri reopens with this, and your agents keep running." = "%@。Tiri 会带着它重新打开，你的智能体会继续运行。";
+"%@, check passed. Tiri reopens with this, and your agents keep running." = "%@，检查通过。Tiri 会重新打开并用上这项更改，你的智能体照常运行。";
+"%@, check failed. Tiri reopens with this, and your agents keep running." = "%@，检查未通过。Tiri 会重新打开并用上这项更改，你的智能体照常运行。";
+"%@. Tiri reopens with this, and your agents keep running." = "%@。Tiri 会重新打开并用上这项更改，你的智能体照常运行。";
 "Not Now" = "以后再说";
-"See What Changed" = "查看改动";
+"See What Changed" = "查看更改";
 "%@ is rewriting Tiri" = "%@ 正在改写 Tiri";
 "It needs you, below." = "它在下方等你回应。";
-"This takes a few minutes, and Tiri says when it's ready." = "这需要几分钟，完成后 Tiri 会告诉你。";
+"This takes a few minutes, and Tiri says when it's ready." = "大约要几分钟，好了 Tiri 会告诉你。";
 "Keep Working" = "继续工作";
-"Keep it, or go back to how it was. It keeps itself after ten minutes." = "保留它，或者回到原来的样子。十分钟后会自动保留。";
-"Keep it, or go back to how it was. It keeps itself after ten minutes. macOS may ask about your folders once more." = "保留它，或者回到原来的样子。十分钟后会自动保留。macOS 可能会再询问一次文件夹权限。";
-"You're trying this" = "你正在试用";
+"Keep it, or go back to how it was. It keeps itself after ten minutes." = "保留，或者回到原样。十分钟后自动保留。";
+"Keep it, or go back to how it was. It keeps itself after ten minutes. macOS may ask about your folders once more." = "保留，或者回到原样。十分钟后自动保留。macOS 可能会再询问一次文件夹权限。";
+"You're trying this" = "正在试用这项更改";
 "%@. Click for what it touched." = "%@。点按查看它改了哪些文件。";
 "repaired" = "已修复";
 "Has a check, so updates can look after it." = "有检查，更新时可以自动照看它。";
 "No check, so updates will ask you to look at it." = "没有检查，更新时会请你看一看。";
 "Repaired for Tiri %@, with nothing to change." = "已为 Tiri %@ 修复，无需改动。";
 "Repaired for Tiri %@, in %@." = "已为 Tiri %@ 修复，改动了 %@。";
-"%@ needs you" = "%@ 需要你";
+"%@ needs you" = "%@ 在等你";
 "%@ is making this" = "%@ 正在制作";
 "Its agent has gone. This discards what it had edited." = "它的智能体已不在。这会丢弃它做的编辑。";
 "Plain Tiri" = "原版 Tiri";
@@ -1113,13 +1113,13 @@
 "%@ can redo it on the new code, or retire it if Tiri does this itself now. It does this by itself at future updates." = "%@ 可以在新代码上重做它；如果 Tiri 已自带这项功能，也可以将它停用。以后更新时会自动这样做。";
 
 /* YourTiriStory.swift */
-"Tiri can rewrite itself for you." = "Tiri 可以为你改写自己。";
+"Tiri can rewrite itself for you." = "Tiri 能按你的意思改写自己。";
 "You say what you want" = "说出你想要的";
 "In your own words" = "用你自己的话";
 "%@ builds it" = "%@ 来实现";
-"A few minutes. Keep working" = "几分钟，你继续工作";
-"Tiri reopens with it" = "Tiri 带着它重新打开";
-"Keep it, or go back" = "保留，或者返回";
+"A few minutes. Keep working" = "几分钟就好，你忙你的";
+"Tiri reopens with it" = "Tiri 重新打开后生效";
+"Keep it, or go back" = "保留，或者回到原样";
 "“Show how long each agent has been working”" = "“显示每个智能体已经工作了多久”";
 "%@ rewrites Tiri in a new tab. Nothing changes until you try it." = "%@ 会在新标签页中改写 Tiri。在你试用之前，什么都不会变。";
 "%@ sees this part." = "%@ 会看到这部分。";
@@ -1272,7 +1272,7 @@
 "%@ settings" = "%@ 设置";
 "Start from this" = "从这里开始";
 "What should the plugin do? %@ will write it, and you'll turn it on." = "插件应该做什么？%@ 会编写它，再由你启用。";
-"Your agent needs you" = "你的智能体需要你";
+"Your agent needs you" = "你的智能体在等你";
 "Your agent is building this" = "你的智能体正在构建";
 "%@ is building this" = "%@ 正在构建";
 "Changed since you approved it, so it's off" = "批准后已更改，因此已停用";
@@ -1834,15 +1834,15 @@
 
 /* Welcome.swift */
 "Welcome to Tiri" = "欢迎使用 Tiri";
-"Keep your agent. Get everything around it." = "智能体照用，周边一应俱全。";
+"Keep your agent. Get everything around it." = "智能体不用换，配套一应俱全。";
 "Change Tiri by asking" = "开口就能修改 Tiri";
 "Start" = "开始";
 "click to Peek" = "点按即可速览";
 "Command-click a path to Peek at it" = "按住 Command 键点按路径即可速览";
-"⌘-click any path" = "⌘-点按任意路径";
+"⌘-click any path" = "按住 ⌘ 点按任意路径";
 "The file floats over the session" = "文件浮在会话上方";
 "Every agent at a glance" = "所有智能体一目了然";
-"The one that needs you is marked" = "需要你的那个会标出来";
+"The one that needs you is marked" = "在等你的那个会标出来";
 "It improves itself" = "它会自我改进";
 "Ask, and your agent rewrites it" = "说出要求，智能体就改写它";
 "Compare" = "比较";
@@ -1952,7 +1952,7 @@
 "needs redoing" = "需要重做";
 "What it touched" = "它改动了什么";
 "What %@ touched" = "%@ 改动了什么";
-"Share, See What Changed" = "分享、查看改动";
+"Share, See What Changed" = "分享、查看更改";
 "A .tirichange file someone shared with you" = "别人分享给你的 .tirichange 文件";
 
 /* Notes */

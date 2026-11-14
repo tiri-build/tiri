@@ -262,7 +262,7 @@
 "Plugins" = "外掛";
 "Tiri Agent Guide" = "Tiri 代理指南";
 "Tiri Website" = "Tiri 網站";
-"Release Notes" = "發佈說明";
+"Release Notes" = "版本說明";
 
 /* Launch.swift */
 "Your copy of Tiri wasn't there, so this is Plain Tiri. Your changes are kept." = "找不到你的 Tiri 副本，所以現在是原版 Tiri。你的修改都還在。";
@@ -1042,7 +1042,7 @@
 "Keep" = "保留";
 "Ready to try: %@" = "可以試用：%@";
 "Give Up" = "放棄";
-"%@ needs you: %@" = "%@ 需要你：%@";
+"%@ needs you: %@" = "%@ 在等你：%@";
 "Changing Tiri: %@" = "正在修改 Tiri：%@";
 "Making a copy of Tiri with that change" = "正在製作帶有這項變更的 Tiri";
 "%@ does your change itself now: %@" = "%@ 現在內建你的變更：%@";
@@ -1054,7 +1054,7 @@
 "Tiri %@ with 1 change" = "Tiri %@，含 1 項變更";
 "Tiri %@ with %lld changes" = "Tiri %@，含 %lld 項變更";
 "Another change is being made" = "另一項變更正在進行";
-"What do you want Tiri to do differently?" = "你想讓 Tiri 有什麼不同？";
+"What do you want Tiri to do differently?" = "你想讓 Tiri 哪裡不一樣？";
 "Show how long each agent has been working" = "顯示每個代理已經工作了多久";
 "Put Changes above Explorer in the sidebar" = "在側邊欄中把「變更」放在「檔案」上方";
 "ready to try" = "可以試用";
@@ -1087,25 +1087,25 @@
 
 /* YourTiriViews.swift */
 "%@. %@" = "%@。%@";
-"%@, check passed. Tiri reopens with this, and your agents keep running." = "%@，檢查通過。Tiri 會帶著它重新打開，你的代理會繼續執行。";
-"%@, check failed. Tiri reopens with this, and your agents keep running." = "%@，檢查未通過。Tiri 會帶著它重新打開，你的代理會繼續執行。";
-"%@. Tiri reopens with this, and your agents keep running." = "%@。Tiri 會帶著它重新打開，你的代理會繼續執行。";
+"%@, check passed. Tiri reopens with this, and your agents keep running." = "%@，檢查通過。Tiri 會套用這項變更並重新打開，你的代理會繼續執行。";
+"%@, check failed. Tiri reopens with this, and your agents keep running." = "%@，檢查未通過。Tiri 會套用這項變更並重新打開，你的代理會繼續執行。";
+"%@. Tiri reopens with this, and your agents keep running." = "%@。Tiri 會套用這項變更並重新打開，你的代理會繼續執行。";
 "Not Now" = "稍後再說";
 "See What Changed" = "查看變更內容";
 "%@ is rewriting Tiri" = "%@ 正在改寫 Tiri";
 "It needs you, below." = "它在下方等你回應。";
-"This takes a few minutes, and Tiri says when it's ready." = "這需要幾分鐘，完成後 Tiri 會告訴你。";
+"This takes a few minutes, and Tiri says when it's ready." = "要等幾分鐘，好了 Tiri 會告訴你。";
 "Keep Working" = "繼續工作";
-"Keep it, or go back to how it was. It keeps itself after ten minutes." = "保留它，或回到原本的樣子。十分鐘後會自動保留。";
-"Keep it, or go back to how it was. It keeps itself after ten minutes. macOS may ask about your folders once more." = "保留它，或回到原本的樣子。十分鐘後會自動保留。macOS 可能會再詢問一次資料夾權限。";
-"You're trying this" = "你正在試用";
+"Keep it, or go back to how it was. It keeps itself after ten minutes." = "可以保留，也可以改回原本的樣子。十分鐘後會自動保留。";
+"Keep it, or go back to how it was. It keeps itself after ten minutes. macOS may ask about your folders once more." = "可以保留，也可以改回原本的樣子。十分鐘後會自動保留。macOS 可能會再詢問一次資料夾權限。";
+"You're trying this" = "你正在試用這項變更";
 "%@. Click for what it touched." = "%@。按一下查看它改了哪些檔案。";
 "repaired" = "已修復";
 "Has a check, so updates can look after it." = "有檢查，更新時可以自動照看它。";
 "No check, so updates will ask you to look at it." = "沒有檢查，更新時會請你看一看。";
 "Repaired for Tiri %@, with nothing to change." = "已為 Tiri %@ 修復，無需改動。";
 "Repaired for Tiri %@, in %@." = "已為 Tiri %@ 修復，改動了 %@。";
-"%@ needs you" = "%@ 需要你";
+"%@ needs you" = "%@ 在等你";
 "%@ is making this" = "%@ 正在製作";
 "Its agent has gone. This discards what it had edited." = "它的代理已不在。這會捨棄它做的編輯。";
 "Plain Tiri" = "原版 Tiri";
@@ -1116,10 +1116,10 @@
 "Tiri can rewrite itself for you." = "Tiri 可以為你改寫自己。";
 "You say what you want" = "說出你想要的";
 "In your own words" = "用你自己的話";
-"%@ builds it" = "%@ 來實現";
-"A few minutes. Keep working" = "幾分鐘，你繼續工作";
-"Tiri reopens with it" = "Tiri 帶著它重新打開";
-"Keep it, or go back" = "保留，或返回";
+"%@ builds it" = "交給 %@ 來做";
+"A few minutes. Keep working" = "只要幾分鐘，你忙你的";
+"Tiri reopens with it" = "Tiri 套用後重新打開";
+"Keep it, or go back" = "可以保留，也可以返回";
 "“Show how long each agent has been working”" = "「顯示每個代理已經工作了多久」";
 "%@ rewrites Tiri in a new tab. Nothing changes until you try it." = "%@ 會在新分頁中改寫 Tiri。在你試用之前，什麼都不會變。";
 "%@ sees this part." = "%@ 會看到這部分。";
@@ -1272,7 +1272,7 @@
 "%@ settings" = "%@ 設定";
 "Start from this" = "以此為起點";
 "What should the plugin do? %@ will write it, and you'll turn it on." = "外掛應該做什麼？%@ 會撰寫它，再由你啟用。";
-"Your agent needs you" = "你的代理需要你";
+"Your agent needs you" = "你的代理在等你";
 "Your agent is building this" = "你的代理正在建置";
 "%@ is building this" = "%@ 正在建置";
 "Changed since you approved it, so it's off" = "核准後已變更，因此已停用";
@@ -1834,16 +1834,16 @@
 
 /* Welcome.swift */
 "Welcome to Tiri" = "歡迎使用 Tiri";
-"Keep your agent. Get everything around it." = "代理照用，周邊一應俱全。";
+"Keep your agent. Get everything around it." = "代理不用換，周邊全到位。";
 "Change Tiri by asking" = "開口就能修改 Tiri";
 "Start" = "開始";
 "click to Peek" = "按一下即可速覽";
 "Command-click a path to Peek at it" = "按住 Command 鍵按一下路徑即可速覽";
-"⌘-click any path" = "⌘-按一下任何路徑";
+"⌘-click any path" = "按住 ⌘ 按一下任何路徑";
 "The file floats over the session" = "檔案浮在工作階段上方";
 "Every agent at a glance" = "所有代理一目了然";
-"The one that needs you is marked" = "需要你的那個會標出來";
-"It improves itself" = "它會自我改進";
+"The one that needs you is marked" = "在等你的那個會標出來";
+"It improves itself" = "Tiri 會自我改進";
 "Ask, and your agent rewrites it" = "說出要求，代理就改寫它";
 "Compare" = "比較";
 "unsaved" = "未儲存";

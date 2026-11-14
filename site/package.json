@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev --port 8787",
-    "deploy": "wrangler d1 migrations apply tiri-downloads --remote && wrangler deploy"
+    "words": "node i18n/build.mjs --strict",
+    "deploy": "node i18n/build.mjs --strict && wrangler d1 migrations apply tiri-downloads --remote && wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4.158.0"

@@ -9,6 +9,10 @@
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
   const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const wait = (ms) => new Promise((r) => setTimeout(r, calm ? Math.min(ms, 120) : ms));
+  // Words: the key is the English. A translated page loads its table (site/i18n) before this file;
+  // %1, %2 stand for what's passed after the key.
+  const WORDS = window.TIRI_STRINGS || {};
+  const t = (s, ...a) => (WORDS[s] || s).replace(/%(\d)/g, (_, i) => a[i - 1]);
 
   /* ---------- fit each fixed-size window into its column ---------- */
   // On a laptop-or-wider screen the film and its chapters share the first screen: the film takes the
@@ -147,17 +151,18 @@
   const stIcon = (st) =>
     st === "work" ? '<span class="st st-work"></span>' : st === "done" ? '<span class="st st-done"></span>' : st === "needs" ? '<span class="st st-needs"></span>' : "";
 
+  const lis = (...items) => items.map((i) => `<li>${i}</li>`).join("");
   const VIEWS = {
     image: () =>
-      '<div class="view v-img"><div class="shot"><div class="shot-bar"><i></i><i></i><i></i><span>jobs.acme.example/payments-api</span></div><div class="posting"><div class="logo">acme</div><h5>Software Engineer, Payments API</h5><p class="meta">Engineering · Remote in US or Canada · Full time</p><b>What you\'ll do</b><ul><li>Design the APIs millions of businesses build on</li><li>Own billing and payment flows end to end</li><li>Make retries, webhooks and idempotency boring</li></ul><b>Who you are</b><ul><li>5+ years building backend systems</li><li>You care how an API feels to the person calling it</li></ul></div></div></div>',
+      `<div class="view v-img"><div class="shot"><div class="shot-bar"><i></i><i></i><i></i><span>jobs.acme.example/payments-api</span></div><div class="posting"><div class="logo">acme</div><h5>${t("Software Engineer, Payments API")}</h5><p class="meta">${t("Engineering · Remote in US or Canada · Full time")}</p><b>${t("What you'll do")}</b><ul>${lis(t("Design the APIs millions of businesses build on"), t("Own billing and payment flows end to end"), t("Make retries, webhooks and idempotency boring"))}</ul><b>${t("Who you are")}</b><ul>${lis(t("5+ years building backend systems"), t("You care how an API feels to the person calling it"))}</ul></div></div></div>`,
     page: (g) =>
-      `<div class="view v-doc"><div class="paper${g && g.reloadAt && Date.now() - g.reloadAt < 700 ? " reload" : ""}"><header><h5>Sam Example</h5><p>Backend engineer, payments and APIs</p><small>sam@example.com &nbsp; Toronto &nbsp; github.com/example</small></header><div class="cols"><div><h6>Experience</h6><div class="job"><b>Example Billing Co.</b><span>Senior Engineer, Billing</span><i>2022 to now</i></div><ul><li>Led the billing API rewrite, now serving 4,000 businesses</li><li>Cut failed payment retries 38% with idempotent webhooks</li>${g && g.v2 ? `<li${g.reloadAt && Date.now() - g.reloadAt < 2600 ? ' class="fresh"' : ""}>Designed the public webhooks API and its retry rules</li>` : ""}<li>Built the invoicing service in Go and Postgres</li></ul><div class="job"><b>Sample Shop</b><span>Software Engineer</span><i>2019 to 2022</i></div><ul><li>Designed the public orders API used by 300 partners</li><li>Moved card storage out of PCI scope</li></ul></div><div class="aside"><h6>Skills</h6><p>API design, idempotency, webhooks</p><p>Go, TypeScript, Postgres, Kafka</p><h6>Education</h6><p>BSc Computer Science<br>Example University</p><h6>Open source</h6><p>ratelimit, 2.1k stars</p></div></div></div></div>`,
+      `<div class="view v-doc"><div class="paper${g && g.reloadAt && Date.now() - g.reloadAt < 700 ? " reload" : ""}"><header><h5>Sam Example</h5><p>${t("Backend engineer, payments and APIs")}</p><small>sam@example.com &nbsp; ${t("Toronto")} &nbsp; github.com/example</small></header><div class="cols"><div><h6>${t("Experience")}</h6><div class="job"><b>Example Billing Co.</b><span>${t("Senior Engineer, Billing")}</span><i>${t("2022 to now")}</i></div><ul>${lis(t("Led the billing API rewrite, now serving 4,000 businesses"), t("Cut failed payment retries 38% with idempotent webhooks"))}${g && g.v2 ? `<li${g.reloadAt && Date.now() - g.reloadAt < 2600 ? ' class="fresh"' : ""}>${t("Designed the public webhooks API and its retry rules")}</li>` : ""}${lis(t("Built the invoicing service in Go and Postgres"))}</ul><div class="job"><b>Sample Shop</b><span>${t("Software Engineer")}</span><i>${t("2019 to 2022")}</i></div><ul>${lis(t("Designed the public orders API used by 300 partners"), t("Moved card storage out of PCI scope"))}</ul></div><div class="aside"><h6>${t("Skills")}</h6><p>${t("API design, idempotency, webhooks")}</p><p>Go, TypeScript, Postgres, Kafka</p><h6>${t("Education")}</h6><p>${t("BSc Computer Science")}<br>Example University</p><h6>${t("Open source")}</h6><p>${t("ratelimit, 2.1k stars")}</p></div></div></div></div>`,
     opps: () =>
-      '<div class="view v-page"><h5>Three roles</h5><div class="role">Compared against your resume</div><table><tr><th>Company</th><th>Role</th><th>Fit</th></tr><tr><td>Acme</td><td>Payments API</td><td>Strong</td></tr><tr><td>Globex</td><td>Sync engine</td><td>Good</td></tr><tr><td>Initech</td><td>Card platform</td><td>Good</td></tr></table><h6>Why Acme first</h6><ul><li>Billing API work maps to the role</li><li>Idempotency and webhooks are named in the posting</li></ul></div>',
+      `<div class="view v-page"><h5>${t("Three roles")}</h5><div class="role">${t("Compared against your resume")}</div><table><tr><th>${t("Company")}</th><th>${t("Role")}</th><th>${t("Fit")}</th></tr><tr><td>Acme</td><td>${t("Payments API")}</td><td>${t("Strong")}</td></tr><tr><td>Globex</td><td>${t("Sync engine")}</td><td>${t("Good")}</td></tr><tr><td>Initech</td><td>${t("Card platform")}</td><td>${t("Good")}</td></tr></table><h6>${t("Why Acme first")}</h6><ul>${lis(t("Billing API work maps to the role"), t("Idempotency and webhooks are named in the posting"))}</ul></div>`,
     notes: () =>
-      '<div class="view v-md"><h5>Job hunt notes</h5><p>Applying to three roles this week. Acme closes Friday.</p><h6>To do</h6><ul><li>Tailor resume for Acme</li><li>Ask Mia for a referral</li><li>Prepare the system design story</li></ul></div>',
+      `<div class="view v-md"><h5>${t("Job hunt notes")}</h5><p>${t("Applying to three roles this week. Acme closes Friday.")}</p><h6>${t("To do")}</h6><ul>${lis(t("Tailor resume for Acme"), t("Ask Mia for a referral"), t("Prepare the system design story"))}</ul></div>`,
     fit: () =>
-      '<div class="view v-md"><h5>Why the Acme role fits</h5><p>The posting asks for payments infrastructure and API design. Both are the last three years of your work.</p><h6>Lead with</h6><ul><li>The billing API rewrite, and the 4,000 businesses on it</li><li>38% fewer failed retries from idempotent webhooks</li></ul><h6>Expect them to ask</h6><ul><li>How you versioned the API without breaking clients</li><li>What you would change about the invoicing service</li></ul></div>',
+      `<div class="view v-md"><h5>${t("Why the Acme role fits")}</h5><p>${t("The posting asks for payments infrastructure and API design. Both are the last three years of your work.")}</p><h6>${t("Lead with")}</h6><ul>${lis(t("The billing API rewrite, and the 4,000 businesses on it"), t("38% fewer failed retries from idempotent webhooks"))}</ul><h6>${t("Expect them to ask")}</h6><ul>${lis(t("How you versioned the API without breaking clients"), t("What you would change about the invoicing service"))}</ul></div>`,
     code: (g) => `<div class="view v-code"><div class="crumbs">${esc(g.crumbs || "")}</div><pre>${g.code}</pre></div>`,
   };
 
@@ -191,21 +196,21 @@
   function popHTML(p) {
     const field = p.text
       ? `<span>${esc(p.text)}</span><i class="bcur"></i>${p.full ? '<button type="button" class="ret" data-act="ask">Return ↩</button>' : ""}`
-      : '<span class="ph">What do you want Tiri to do differently?</span>';
+      : '<span class="ph">' + t("What do you want Tiri to do differently?") + "</span>";
     const items = p.items
-      .map((s, i) => `<button type="button" class="cp-item${p.picked === i ? " picked" : ""}" data-act="pick:${i}"${p.done && p.done.includes(i) ? " disabled" : ""}><span class="q">“</span>${esc(s)}</button>`)
+      .map((s, i) => `<button type="button" class="cp-item${p.picked === i ? " picked" : ""}" data-act="pick:${i}"${p.done && p.done.includes(i) ? " disabled" : ""}><span class="q">${t("“")}</span>${esc(s)}</button>`)
       .join("");
     return (
-      `<div class="cpop"><div class="cp-field">${field}</div><div class="cp-body"><b>Tiri can rewrite itself for you.</b><div class="cp-cards">` +
-      '<div class="cp-card"><div class="cp-ill"><div class="strip"><i></i><i></i><i></i></div><div class="in"><div class="bub">“Show how long each agent has been working”</div></div></div><b>You say what you want</b><small>In your own words</small></div>' +
-      '<div class="cp-card"><div class="cp-ill"><div class="strip"><i></i><i></i><i></i></div><div class="in"><div class="gl">✻ <i class="w2"></i></div><div class="gl">+ <i class="w3"></i></div><div class="gl">+ <i class="w1"></i></div></div></div><b>Claude Code builds it</b><small>A few minutes. Keep working</small></div>' +
-      '<div class="cp-card"><div class="cp-ill"><div class="strip"><i></i><i></i><i></i></div><div class="in"><span class="tm">3:12</span><div class="pills"><span>Back</span><span>Keep</span></div></div></div><b>Tiri reopens with it</b><small>Keep it, or go back</small></div>' +
-      `</div><div class="cp-row"><span class="cp-mark">⛶ Mark It on Screen</span><small>Uses your Claude Code account. About 1 GB, the first time</small></div></div><div class="cp-list">${items}</div></div>`
+      `<div class="cpop"><div class="cp-field">${field}</div><div class="cp-body"><b>${t("Tiri can rewrite itself for you.")}</b><div class="cp-cards">` +
+      `<div class="cp-card"><div class="cp-ill"><div class="strip"><i></i><i></i><i></i></div><div class="in"><div class="bub">${t("“%1”", t("Show how long each agent has been working"))}</div></div></div><b>${t("You say what you want")}</b><small>${t("In your own words")}</small></div>` +
+      `<div class="cp-card"><div class="cp-ill"><div class="strip"><i></i><i></i><i></i></div><div class="in"><div class="gl">✻ <i class="w2"></i></div><div class="gl">+ <i class="w3"></i></div><div class="gl">+ <i class="w1"></i></div></div></div><b>${t("Claude Code builds it")}</b><small>${t("A few minutes. Keep working")}</small></div>` +
+      `<div class="cp-card"><div class="cp-ill"><div class="strip"><i></i><i></i><i></i></div><div class="in"><span class="tm">3:12</span><div class="pills"><span>${t("Back")}</span><span>${t("Keep")}</span></div></div></div><b>${t("Tiri reopens with it")}</b><small>${t("Keep it, or go back")}</small></div>` +
+      `</div><div class="cp-row"><span class="cp-mark">⛶ ${t("Mark It on Screen")}</span><small>${t("Uses your Claude Code account. About 1 GB, the first time")}</small></div></div><div class="cp-list">${items}</div></div>`
     );
   }
   function sideHTML(S) {
-    const ws = `<section class="sec" data-sec="ws"><h4>Workspaces<span class="h-r">${PLUS}</span></h4>${S.ws
-      .map((w) => `<div class="row${w.name === S.on ? " on" : ""}" data-ws="${esc(w.name)}">${ICON.folder}<span class="nm">${esc(w.name)}</span>${w.badge ? `<b class="cnt${w.pink ? " pink" : ""}">${w.badge}</b>` : ""}</div>`)
+    const ws = `<section class="sec" data-sec="ws"><h4>${t("Workspaces")}<span class="h-r">${PLUS}</span></h4>${S.ws
+      .map((w) => `<div class="row${w.name === S.on ? " on" : ""}" data-ws="${esc(w.name)}">${ICON.folder}<span class="nm">${esc(t(w.name))}</span>${w.badge ? `<b class="cnt${w.pink ? " pink" : ""}">${w.badge}</b>` : ""}</div>`)
       .join("")}</section>`;
     const tree = S.tree
       .map((t) =>
@@ -214,13 +219,13 @@
           : `<div class="row d${t.d}${t.hot ? " on" : ""}"><span class="tw"></span>${ICON[t.kind]}<span class="nm">${esc(t.name)}</span></div>`
       )
       .join("");
-    const ex = `<section class="sec" data-sec="explorer"><h4>${CHEV}Explorer<span class="h-r">${NEWFILE}${NEWDIR}${PLUS}</span></h4><div class="row root">${CHEV}${esc(S.root)}</div>${tree}</section>`;
-    const ch = `<section class="sec" data-sec="changes"><h4>${CHEV}Changes<span class="h-r">Since commit <span>${S.changes.length}</span></span></h4>${
+    const ex = `<section class="sec" data-sec="explorer"><h4>${CHEV}${t("Explorer")}<span class="h-r">${NEWFILE}${NEWDIR}${PLUS}</span></h4><div class="row root">${CHEV}${esc(S.root)}</div>${tree}</section>`;
+    const ch = `<section class="sec" data-sec="changes"><h4>${CHEV}${t("Changes")}<span class="h-r">${t("Since commit")} <span>${S.changes.length}</span></span></h4>${
       S.changes.length
         ? S.changes.map((c) => `<div class="row">${ICON[c.kind]}<span class="nm">${esc(c.name)}</span><span class="dir">${esc(c.dir || "")}</span><span class="letter ${c.l}">${c.l}</span></div>`).join("")
-        : '<div class="empty">No changes since the last commit.</div>'
+        : `<div class="empty">${t("No changes since the last commit.")}</div>`
     }</section>`;
-    const ag = `<section class="sec" data-sec="agents"><h4>${CHEV}Agents<span class="h-r">${HISTORY}<span>${S.agents.length}</span></span></h4>${S.agents
+    const ag = `<section class="sec" data-sec="agents"><h4>${CHEV}${t("Agents")}<span class="h-r">${HISTORY}<span>${S.agents.length}</span></span></h4>${S.agents
       .map(
         (a) =>
           `<div class="agent${a.attn ? " attn" : ""}" data-agent="${a.id}">${a.st === "work" ? '<span class="ast work">✻</span>' : `<span class="ast">${stIcon(a.st)}</span>`}<span class="atx"><b>${esc(a.title)}</b><small>${esc(a.sub)}</small></span>${
@@ -229,7 +234,7 @@
       )
       .join("")}</section>`;
     // Open Items is folded, as people usually keep it, so the sections above have room.
-    const oi = `<section class="sec" data-sec="open"><h4>${CHEV_SHUT}Open Items<span class="h-r"><span>${S.open.length}</span></span></h4></section>`;
+    const oi = `<section class="sec" data-sec="open"><h4>${CHEV_SHUT}${t("Open Items")}<span class="h-r"><span>${S.open.length}</span></span></h4></section>`;
     return `<aside class="side">${ws}${ex}${ch}${ag}${oi}</aside>`;
   }
   function render(root, S) {
@@ -239,7 +244,7 @@
       .map((g) => `<div class="group" data-group="${g.id}"><div class="tabs">${g.tabs.map(tabHTML).join("")}</div>${viewHTML(g)}${g.card ? cardHTML(g.card) : ""}</div>`)
       .join("");
     const peek = S.peek
-      ? `<div class="peekbox"><div class="pk-head">${ICON[S.peek.icon]}<span class="pk-name"><b>${esc(S.peek.name)}</b><small>${esc(S.peek.dir)}</small></span><span class="pk-tab" data-pk-tab>Open as Tab</span><span class="pk-x">✕</span></div>${VIEWS[S.peek.view](S.peek)}</div>`
+      ? `<div class="peekbox"><div class="pk-head">${ICON[S.peek.icon]}<span class="pk-name"><b>${esc(S.peek.name)}</b><small>${esc(S.peek.dir)}</small></span><span class="pk-tab" data-pk-tab>${t("Open as Tab")}</span><span class="pk-x">✕</span></div>${VIEWS[S.peek.view](S.peek)}</div>`
       : "";
     const sb = S.sb
       ? `${SB[S.sb.icon] || ""}<span>${esc(S.sb.text)}</span>${(S.sb.btns || []).map((b) => `<button type="button" class="sbtn" data-act="${b.act || ""}">${b.label}</button>`).join("")}`
@@ -252,7 +257,7 @@
       cards: S.groups.map((g) => (g.card ? g.id + g.card.icon + g.card.title : "")),
     };
     inner.innerHTML =
-      `<div class="titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="tb-side">${svg('<rect x="2.5" y="4" width="15" height="12" rx="2.5"/><path d="M7.5 4v12"/>')}</span><span class="tb-title"><b>${esc(S.title)}</b><small>${esc(S.path)}</small></span><span class="tb-tools">${svg('<path d="M10 4.5v11M4.5 10h11"/>')}${svg('<path d="M4.5 10a5.5 5.5 0 1 0 1.6-3.9M4.5 4.5v2.5H7"/><path d="M10 7v3.2l2 1.3"/>')}${svg('<path d="M13.5 8.5 8.6 13.4a2.3 2.3 0 0 1-3.3-3.3l5.6-5.6a1.6 1.6 0 0 1 2.2 2.2l-5.3 5.3"/>')}${svg('<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M10 4v12"/>')}${svg('<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 10h14"/>')}</span></div>` +
+      `<div class="titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="tb-side">${svg('<rect x="2.5" y="4" width="15" height="12" rx="2.5"/><path d="M7.5 4v12"/>')}</span><span class="tb-title"><b>${esc(t(S.title))}</b><small>${esc(S.path)}</small></span><span class="tb-tools">${svg('<path d="M10 4.5v11M4.5 10h11"/>')}${svg('<path d="M4.5 10a5.5 5.5 0 1 0 1.6-3.9M4.5 4.5v2.5H7"/><path d="M10 7v3.2l2 1.3"/>')}${svg('<path d="M13.5 8.5 8.6 13.4a2.3 2.3 0 0 1-3.3-3.3l5.6-5.6a1.6 1.6 0 0 1 2.2 2.2l-5.3 5.3"/>')}${svg('<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M10 4v12"/>')}${svg('<rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 10h14"/>')}</span></div>` +
       `<div class="body">${sideHTML(S)}<div class="main">${groups}${peek}${S.pop ? popHTML(S.pop) : ""}</div></div>` +
       `<div class="statusbar"><span class="sb-l">${BRANCH}${esc(S.branch)}</span><span class="sb-r">${sb}</span></div>` +
       (S.notif ? `<div class="notif"><img src="/img/tiri-icon.png" alt=""><span><b>${esc(S.notif.title)}</b><small>${esc(S.notif.body)}</small></span></div>` : "");
@@ -296,25 +301,26 @@
     if (!S.ws.some((w) => w.name === "Your Tiri")) S.ws.push({ name: "Your Tiri" });
     S.on = "Your Tiri";
     S.title = "Your Tiri";
-    S.path = "Tiri's own source, for the version you're running";
+    S.path = t("Tiri's own source, for the version you're running");
     S.root = "SOURCE";
     S.tree = SOURCE_TREE();
     S.changes = [];
     S.open = [{ st: "work", name: sentence, on: true }];
   }
-  const youLine = (s) => ["you", `Change Tiri for me: ${esc(s.charAt(0).toLowerCase() + s.slice(1))}. Everything you need is in .tiri-brief.md, so read that first.`];
-  const BUILDING = (s) => ({ icon: "hammer", title: s, detail: "Claude Code is rewriting Tiri. This takes a few minutes, and Tiri says when it's ready.", btns: [{ label: "Keep Working", act: "keepworking" }] });
+  // What Tiri types to the agent stays English in every language, around the words the person used.
+  const youLine = (s) => ["you", t("Change Tiri for me: %1. Everything you need is in .tiri-brief.md, so read that first.", esc(s.charAt(0).toLowerCase() + s.slice(1)))];
+  const BUILDING = (s) => ({ icon: "hammer", title: s, detail: t("Claude Code is rewriting Tiri. This takes a few minutes, and Tiri says when it's ready."), btns: [{ label: t("Keep Working"), act: "keepworking" }] });
   const READY = (s) => ({
     icon: "sparkle",
     title: s,
-    detail: "Ready to try. 2 files, 59 lines, check passed. Tiri reopens with this, and your agents keep running.",
-    btns: [{ label: "Not Now", act: "notnow" }, { label: "See What Changed", act: "see" }, { label: "Try It", act: "try", hint: true }],
+    detail: t("Ready to try. 2 files, 59 lines, check passed. Tiri reopens with this, and your agents keep running."),
+    btns: [{ label: t("Not Now"), act: "notnow" }, { label: t("See What Changed"), act: "see" }, { label: t("Try It"), act: "try", hint: true }],
   });
   const TRYING = (s) => ({
     icon: "check",
     title: s,
-    detail: "You're trying this. Keep it, or go back to how it was. It keeps itself after ten minutes.",
-    btns: [{ label: "Go Back", act: "back" }, { label: "Keep", act: "keep", hint: true }],
+    detail: t("You're trying this. Keep it, or go back to how it was. It keeps itself after ten minutes."),
+    btns: [{ label: t("Go Back"), act: "back" }, { label: t("Keep"), act: "keep", hint: true }],
   });
 
   /* =====================================================================
@@ -363,13 +369,13 @@
     groups: [
       {
         id: "L",
-        tabs: [{ id: "codex", st: "needs", title: "Fix the flaky upload test", on: true }],
+        tabs: [{ id: "codex", st: "needs", title: t("Fix the flaky upload test"), on: true }],
         view: "term",
         banner: { agent: "codex", path: "~/Code/billing-api" },
         lines: [
-          ["you", "Fix the flaky upload test"],
-          ["say", "Found it. The retry in <span class=\"cc-a\">src/upload/retry.ts:42</span> didn't wait for the last attempt to settle."],
-          ["say", "Changed <span class=\"cc-a\">src/upload/retry.ts</span>. Now I'll run the upload tests."],
+          ["you", t("Fix the flaky upload test")],
+          ["say", t(`Found it. The retry in <span class="cc-a">src/upload/retry.ts:42</span> didn't wait for the last attempt to settle.`)],
+          ["say", t(`Changed <span class="cc-a">src/upload/retry.ts</span>. Now I'll run the upload tests.`)],
           ["raw", "  Allow this command?\n  $ pnpm test upload\n\n  › 1. Yes\n    2. Yes, and don't ask again for pnpm test\n    3. No"],
         ],
         mode: "Codex is waiting for you",
@@ -378,7 +384,7 @@
   };
 
   function filmBase() {
-    const t = Date.now();
+    const now = Date.now();
     F = {
       on: "job-hunt",
       ...JOB,
@@ -386,25 +392,25 @@
       ws: [{ name: "job-hunt" }, { name: "tiri-site" }, { name: "billing-api" }],
       changes: [{ kind: "globe", name: "resume.html", dir: "resume", l: "M" }],
       agents: [
-        { id: "claude", st: "work", title: "Tailor my resume for Acme", sub: "Claude Code · job-hunt · Editing resume.html", since: t - 72e3 },
-        { id: "codex", st: "work", title: "Fix the flaky upload test", sub: "Codex · billing-api · Running tests", since: t - 437e3 },
-        { id: "grok", st: "work", title: "Write the release notes", sub: "Grok · tiri-site · Reading CHANGELOG.md", since: t - 301e3 },
+        { id: "claude", st: "work", title: t("Tailor my resume for Acme"), sub: t("Claude Code · job-hunt · Editing resume.html"), since: now - 72e3 },
+        { id: "codex", st: "work", title: t("Fix the flaky upload test"), sub: t("Codex · billing-api · Running tests"), since: now - 437e3 },
+        { id: "grok", st: "work", title: t("Write the release notes"), sub: t("Grok · tiri-site · Reading CHANGELOG.md"), since: now - 301e3 },
       ],
-      open: [{ st: "work", name: "Tailor my resume for Acme", on: true }, { icon: "image", name: "acme-posting.png" }, { icon: "globe", name: "resume.html" }, { icon: "doc", name: "notes.md" }],
+      open: [{ st: "work", name: t("Tailor my resume for Acme"), on: true }, { icon: "image", name: "acme-posting.png" }, { icon: "globe", name: "resume.html" }, { icon: "doc", name: "notes.md" }],
       groups: [
         {
           id: "L",
-          tabs: [{ id: "claude", st: "work", title: "Tailor my resume for Acme", on: true }],
+          tabs: [{ id: "claude", st: "work", title: t("Tailor my resume for Acme"), on: true }],
           view: "term",
           banner: { agent: "claude", path: "~/Documents/job-hunt" },
           lines: [
-            ["you", "Tailor my resume for the Acme role in screenshots/acme-posting.png, and write up why it fits."],
+            ["you", t("Tailor my resume for the Acme role in screenshots/acme-posting.png, and write up why it fits.")],
             ["sum", "Read 3 files, viewed 1 image"],
-            ["say", "The posting asks for payments and API design, so I'll lead with your billing work."],
+            ["say", t("The posting asks for payments and API design, so I'll lead with your billing work.")],
             ["say", 'Update(<span class="cc-a">resume/resume.html</span>)'],
             ["sub", "Updated with 6 additions and 2 removals"],
           ],
-          spin: { verb: "Tailoring", since: t - 72e3 },
+          spin: { verb: "Tailoring", since: now - 72e3 },
         },
         {
           id: "R",
@@ -519,7 +525,9 @@
 
 
 
-  const SENT = "Show how long each agent has been working";
+  const SENT = t("Show how long each agent has been working");
+  // The typing takes as long in every language, however many letters the sentence has.
+  const TYPE_MS = (28 * 41) / SENT.length;
   const fitTab = () => {
     const R = G("R");
     if (!R.tabs.some((t) => t.id === "fit")) R.tabs.push({ id: "fit", icon: "doc", title: "fit.md", enter: true });
@@ -528,24 +536,24 @@
   };
   const after = [
     () => {
-      Object.assign(agentOf("codex"), { st: "needs", attn: true, sub: "Codex · billing-api · Needs you" });
-      Object.assign(agentOf("grok"), { st: "done", sub: "Grok · tiri-site · Done" });
+      Object.assign(agentOf("codex"), { st: "needs", attn: true, sub: t("Codex · billing-api · Needs you") });
+      Object.assign(agentOf("grok"), { st: "done", sub: t("Grok · tiri-site · Done") });
       Object.assign(F.ws.find((w) => w.name === "billing-api"), { badge: 1, pink: true });
     },
     () => {
-      G("L").lines.push(["say", 'Update(<span class="cc-a">resume/resume.html</span>)'], ["sub", "Added the webhooks API you designed"]);
+      G("L").lines.push(["say", 'Update(<span class="cc-a">resume/resume.html</span>)'], ["sub", t("Added the webhooks API you designed")]);
       G("R").v2 = true;
       showTab(G("R"), "page");
     },
     () => {
-      G("L").lines.push(["say", 'Compared the three roles in <span class="cc-a" data-p="wrong">/resume/opportunities.html</span>.']);
+      G("L").lines.push(["say", t('Compared the three roles in <span class="cc-a" data-p="wrong">/resume/opportunities.html</span>.')]);
     },
     () => {
       const L = G("L");
       L.lines.push(["say", 'Bash(<span class="cc-a" data-cmd>tiri open fit.md</span>)'], ["done", "✻ Crunched for 4m 12s"]);
       L.spin = null;
       L.tabs[0].st = "done";
-      Object.assign(agentOf("claude"), { st: "done", sub: "Claude Code · job-hunt · Done" });
+      Object.assign(agentOf("claude"), { st: "done", sub: t("Claude Code · job-hunt · Done") });
       fitTab();
     },
   ];
@@ -558,7 +566,7 @@
         await move('[data-sec="agents"]', my, 0.7, 0.5, 700);
         await tsleep(1600, my);
         after[0]();
-        F.notif = { title: "Codex needs you", body: "billing-api: allow pnpm test upload?" };
+        F.notif = { title: t("Codex needs you"), body: t("billing-api: allow pnpm test upload?") };
         fr();
         spot('[data-agent="codex"]', "Codex needs you, and you get a notification.");
         await move('[data-agent="codex"]', my, 0.6, 0.5, 600);
@@ -593,7 +601,7 @@
         showTab(G("R"), "page");
         fr();
         await tsleep(500, my);
-        G("L").lines.push(["say", 'Update(<span class="cc-a">resume/resume.html</span>)'], ["sub", "Added the webhooks API you designed"]);
+        G("L").lines.push(["say", 'Update(<span class="cc-a">resume/resume.html</span>)'], ["sub", t("Added the webhooks API you designed")]);
         G("R").v2 = true;
         G("R").reloadAt = Date.now();
         fr();
@@ -640,7 +648,7 @@
         L.lines.push(["done", "✻ Crunched for 4m 12s"]);
         L.spin = null;
         L.tabs[0].st = "done";
-        Object.assign(agentOf("claude"), { st: "done", sub: "Claude Code · job-hunt · Done" });
+        Object.assign(agentOf("claude"), { st: "done", sub: t("Claude Code · job-hunt · Done") });
         fr();
         spot(".peekbox", "The write-up floats up for you to read. Your keyboard stays where it was.");
         await tsleep(2800, my);
@@ -658,15 +666,15 @@
       dur: 15800,
       async run(my) {
         // Two agents are back at work, so the change has something to show.
-        Object.assign(agentOf("codex"), { st: "work", attn: false, sub: "Codex · billing-api · Running tests" });
-        Object.assign(agentOf("grok"), { st: "work", sub: "Grok · tiri-site · Writing CHANGELOG.md" });
+        Object.assign(agentOf("codex"), { st: "work", attn: false, sub: t("Codex · billing-api · Running tests") });
+        Object.assign(agentOf("grok"), { st: "work", sub: t("Grok · tiri-site · Writing CHANGELOG.md") });
         Object.assign(F.ws.find((w) => w.name === "billing-api"), { badge: 0 });
         fr();
         await move(".main", my, 0.45, 0.4, 600);
         spot(null, "Not how you like it? Ask Tiri to change itself.");
-        key("Tiri ▸ Change Tiri…");
+        key(t("Tiri ▸ Change Tiri…"));
         await tsleep(1600, my);
-        F.pop = { text: "", items: [SENT, "Put Changes above Explorer in the sidebar", "Move the sidebar to the right"] };
+        F.pop = { text: "", items: [SENT, t("Put Changes above Explorer in the sidebar"), t("Move the sidebar to the right")] };
         fr();
         key("");
         spot(".cpop", "Say what you want instead, in your own words.");
@@ -674,34 +682,34 @@
         for (let i = 1; i <= SENT.length; i++) {
           F.pop.text = SENT.slice(0, i);
           $(".cp-field", film).innerHTML = `<span>${esc(F.pop.text)}</span><i class="bcur"></i>`;
-          await tsleep(28, my);
+          await tsleep(TYPE_MS, my);
         }
         key("Return");
         await tsleep(600, my);
         key("");
         F.pop = null;
         yourTiri(F, SENT);
-        F.agents.unshift({ id: "change", st: "work", title: SENT, sub: "Claude Code · Your Tiri · Reading AgentsView.swift", since: Date.now() });
+        F.agents.unshift({ id: "change", st: "work", title: SENT, sub: t("Claude Code · Your Tiri · Reading AgentsView.swift"), since: Date.now() });
         F.groups = [{ id: "L", tabs: [{ id: "change", st: "work", title: SENT, on: true, enter: true }], view: "term", banner: { agent: "claude", path: "~/…/Tiri/source" }, lines: [youLine(SENT)], spin: { verb: "Architecting", since: Date.now() - 24e3 }, card: BUILDING(SENT) }];
-        F.sb = { icon: "spin", text: `Changing Tiri: ${SENT}`, btns: [{ label: "Show" }] };
+        F.sb = { icon: "spin", text: t("Changing Tiri: %1", SENT), btns: [{ label: t("Show") }] };
         fr();
         spot('[data-group="L"]', "Your own agent rewrites Tiri's real source, inside Tiri.");
         await tsleep(1600, my);
         const L = G("L");
-        L.lines.push(["sum", "Searched for 1 pattern, read 3 files, ran 4 shell commands"], ["say", "I'm adding a live timer to each working agent in the sidebar, then I'll build it and write the check."]);
+        L.lines.push(["sum", "Searched for 1 pattern, read 3 files, ran 4 shell commands"], ["say", t("I'm adding a live timer to each working agent in the sidebar, then I'll build it and write the check.")]);
         F.changes = [{ kind: "code", name: "AgentsView.swift", dir: "Sources/TiriApp", l: "M" }];
         F.tree = SOURCE_TREE("AgentsView.swift");
         fr();
         await tsleep(1800, my);
-        L.lines.push(["sum", "Ran 2 shell commands"], ["say", "The change is built and ready, so press Try It on the card on my tab to switch to it."], ["done", "✻ Crunched for 3m 9s · done"]);
+        L.lines.push(["sum", "Ran 2 shell commands"], ["say", t("The change is built and ready, so press Try It on the card on my tab to switch to it.")], ["done", "✻ Crunched for 3m 9s · done"]);
         L.spin = null;
         L.tabs[0].st = "done";
         L.tabs[0].enter = false;
         L.card = READY(SENT);
         F.changes = [];
-        Object.assign(F.agents[0], { st: "done", sub: "Claude Code · Your Tiri · Ready to try" });
+        Object.assign(F.agents[0], { st: "done", sub: t("Claude Code · Your Tiri · Ready to try") });
         F.ws.find((w) => w.name === "Your Tiri").badge = 1;
-        F.sb = { icon: "sparkle", text: `Ready to try: ${SENT}`, btns: [{ label: "Try It" }] };
+        F.sb = { icon: "sparkle", text: t("Ready to try: %1", SENT), btns: [{ label: t("Try It") }] };
         fr();
         spot(".tcard", "Built and checked. Nothing changes until you try it.");
         await tsleep(1800, my);
@@ -714,7 +722,7 @@
             F.timers = true;
             L.card = TRYING(SENT);
             F.ws.find((w) => w.name === "Your Tiri").badge = 0;
-            F.sb = { icon: "check", text: `Trying: ${SENT}`, btns: [{ label: "Go Back" }, { label: "Keep" }] };
+            F.sb = { icon: "check", text: t("Trying: %1", SENT), btns: [{ label: t("Go Back") }, { label: t("Keep") }] };
             fr();
           },
           (ms) => tsleep(ms, my)
@@ -750,7 +758,7 @@
   function syncPaused() {
     chaptersEl.classList.toggle("paused", !(playing && visible) || calm);
     pauseBtn.classList.toggle("play", !playing);
-    pauseBtn.setAttribute("aria-label", playing ? "Pause the film" : "Play the film");
+    pauseBtn.setAttribute("aria-label", playing ? t("Pause the film") : t("Play the film"));
   }
   async function play(i, once = false) {
     const my = ++tok;
@@ -805,8 +813,8 @@
       ask: SENT,
       cls: "timers",
       file: "AgentsView.swift",
-      plan: "adding a live timer to each working agent in the sidebar",
-      done: "Each working agent now shows how long it has been working",
+      plan: t("adding a live timer to each working agent in the sidebar"),
+      done: t("Each working agent now shows how long it has been working"),
       shows: '[data-sec="agents"]',
       start: 41,
       diff: [
@@ -824,11 +832,11 @@
     },
     {
       id: "changes",
-      ask: "Put Changes above Explorer in the sidebar",
+      ask: t("Put Changes above Explorer in the sidebar"),
       cls: "changesFirst",
       file: "Sidebar.swift",
-      plan: "moving the Changes block above the Explorer header in Sidebar.swift",
-      done: "Changes now sits above Explorer in the sidebar",
+      plan: t("moving the Changes block above the Explorer header in Sidebar.swift"),
+      done: t("Changes now sits above Explorer in the sidebar"),
       shows: '[data-sec="changes"]',
       start: 88,
       diff: [
@@ -843,11 +851,11 @@
     },
     {
       id: "flip",
-      ask: "Move the sidebar to the right",
+      ask: t("Move the sidebar to the right"),
       cls: "flip",
       file: "RootView.swift",
-      plan: "moving the sidebar to the trailing edge in RootView.swift",
-      done: "The sidebar now sits on the right",
+      plan: t("moving the sidebar to the trailing edge in RootView.swift"),
+      done: t("The sidebar now sits on the right"),
       shows: ".side",
       start: 63,
       diff: [
@@ -874,7 +882,7 @@
   const kept = new Map();
 
   function demoBase() {
-    const t = Date.now();
+    const now = Date.now();
     D = {
       on: "tiri-site",
       title: "tiri-site",
@@ -892,25 +900,25 @@
       ],
       changes: [{ kind: "doc", name: "app.css", dir: "src", l: "M" }],
       agents: [
-        { id: "claude", st: "work", title: "Add a dark mode toggle", sub: "Claude Code · tiri-site · Editing Header.tsx", since: t - 72e3 },
-        { id: "codex", st: "needs", title: "Fix the flaky upload test", sub: "Codex · billing-api · Needs you", since: t - 437e3 },
+        { id: "claude", st: "work", title: t("Add a dark mode toggle"), sub: t("Claude Code · tiri-site · Editing Header.tsx"), since: now - 72e3 },
+        { id: "codex", st: "needs", title: t("Fix the flaky upload test"), sub: t("Codex · billing-api · Needs you"), since: now - 437e3 },
       ],
-      open: [{ st: "work", name: "Add a dark mode toggle", on: true }],
+      open: [{ st: "work", name: t("Add a dark mode toggle"), on: true }],
       groups: [
         {
           id: "L",
-          tabs: [{ id: "claude", st: "work", title: "Add a dark mode toggle", on: true }],
+          tabs: [{ id: "claude", st: "work", title: t("Add a dark mode toggle"), on: true }],
           view: "term",
           banner: { agent: "claude", path: "~/Code/tiri-site" },
           lines: [
-            ["you", "Add a dark mode toggle to the header. Follow the system setting until someone picks."],
+            ["you", t("Add a dark mode toggle to the header. Follow the system setting until someone picks.")],
             ["sum", "Read 2 files"],
             ["say", 'Write(<span class="cc-a">src/components/ThemeToggle.tsx</span>)'],
             ["sub", "Wrote 38 lines"],
             ["say", 'Update(<span class="cc-a">src/components/Header.tsx</span>)'],
             ["sub", "Updated with 3 additions and 1 removal"],
           ],
-          spin: { verb: "Wiring", since: t - 42e3 },
+          spin: { verb: "Wiring", since: now - 42e3 },
         },
       ],
       pop: { text: "", items: CHANGES.map((c) => c.ask), picked: null, done: [] },
@@ -937,16 +945,16 @@
   const NOTES = {
     // A narrow screen sends the change as soon as it's picked.
     get pick() {
-      if (narrow.matches) return "Pick a change in the window.";
-      return touch ? "Pick a change in the window, then tap Return." : "Pick a change in the window, then press Return.";
+      if (narrow.matches) return t("Pick a change in the window.");
+      return touch ? t("Pick a change in the window, then tap Return.") : t("Pick a change in the window, then press Return.");
     },
-    asked: touch ? "Tap Return to hand it to Claude Code." : "Press Return to hand it to Claude Code.",
-    building: "Claude Code is rewriting Tiri, inside Tiri. Minutes in real life, seconds here.",
-    ready: touch ? "Built and checked. Tap Try It." : "Built and checked. Press Try It.",
-    trying: "Tiri reopened with the change, and your agents kept running. Keep it, or go back.",
-    kept: "Kept. It's in the list below, and every update keeps it.",
-    back: "Back to how it was. Nothing else changed.",
-    plain: "Plain Tiri. Your changes are saved; switch them back on below.",
+    asked: touch ? t("Tap Return to hand it to Claude Code.") : t("Press Return to hand it to Claude Code."),
+    building: t("Claude Code is rewriting Tiri, inside Tiri. Minutes in real life, seconds here."),
+    ready: touch ? t("Built and checked. Tap Try It.") : t("Built and checked. Press Try It."),
+    trying: t("Tiri reopened with the change, and your agents kept running. Keep it, or go back."),
+    kept: t("Kept. It's in the list below, and every update keeps it."),
+    back: t("Back to how it was. Nothing else changed."),
+    plain: t("Plain Tiri. Your changes are saved; switch them back on below."),
   };
   function syncUnder() {
     note.textContent = NOTES[phase] || "";
@@ -993,32 +1001,32 @@
     const c = current;
     D.pop = null;
     yourTiri(D, c.ask);
-    D.agents.unshift({ id: "change", st: "work", title: c.ask, sub: "Claude Code · Your Tiri · Reading CHANGING.md", since: Date.now() });
+    D.agents.unshift({ id: "change", st: "work", title: c.ask, sub: t("Claude Code · Your Tiri · Reading CHANGING.md"), since: Date.now() });
     D.groups = [{ id: "L", tabs: [{ id: "change", st: "work", title: c.ask, on: true, enter: true }], view: "term", banner: { agent: "claude", path: "~/…/Tiri/source" }, lines: [youLine(c.ask)], spin: { verb: "Architecting", since: Date.now() }, card: BUILDING(c.ask) }];
-    D.sb = { icon: "spin", text: `Changing Tiri: ${c.ask}`, btns: [{ label: "Show" }] };
+    D.sb = { icon: "spin", text: t("Changing Tiri: %1", c.ask), btns: [{ label: t("Show") }] };
     dr();
     const L = D.groups[0];
     L.tabs[0].enter = false;
     await wait(1100);
-    L.lines.push(["sum", "Searched for 1 pattern, read 3 files, ran 4 shell commands"], ["say", `I'm ${c.plan}, then I'll build it and write the check.`]);
+    L.lines.push(["sum", "Searched for 1 pattern, read 3 files, ran 4 shell commands"], ["say", t("I'm %1, then I'll build it and write the check.", c.plan)]);
     D.tree = SOURCE_TREE(c.file);
     D.changes = [{ kind: "code", name: c.file, dir: "Sources/TiriApp", l: "M" }];
-    D.agents[0].sub = `Claude Code · Your Tiri · Editing ${c.file}`;
+    D.agents[0].sub = t("Claude Code · Your Tiri · Editing %1", c.file);
     dr();
     await wait(1300);
     L.lines.push(["say", "Running 1 shell command · 2s…"], ["sub", "$ ./build.sh && tiri change check"]);
-    D.agents[0].sub = "Claude Code · Your Tiri · Building Tiri";
+    D.agents[0].sub = t("Claude Code · Your Tiri · Building Tiri");
     dr();
     await wait(1600);
-    L.lines.splice(-2, 2, ["sum", "Ran 2 shell commands"], ["say", `${c.done}. The change is built and ready, so press Try It on the card on my tab to switch to it.`], ["done", "✻ Crunched for 3m 9s · done"]);
+    L.lines.splice(-2, 2, ["sum", "Ran 2 shell commands"], ["say", t("%1. The change is built and ready, so press Try It on the card on my tab to switch to it.", c.done)], ["done", "✻ Crunched for 3m 9s · done"]);
     L.spin = null;
     L.tabs[0].st = "done";
     L.card = READY(c.ask);
     D.changes = [];
-    Object.assign(D.agents[0], { st: "done", sub: "Claude Code · Your Tiri · Ready to try" });
+    Object.assign(D.agents[0], { st: "done", sub: t("Claude Code · Your Tiri · Ready to try") });
     D.open[0].st = "done";
     D.ws.find((w) => w.name === "Your Tiri").badge = 1;
-    D.sb = { icon: "sparkle", text: `Ready to try: ${c.ask}`, btns: [{ label: "Try It", act: "try" }] };
+    D.sb = { icon: "sparkle", text: t("Ready to try: %1", c.ask), btns: [{ label: t("Try It"), act: "try" }] };
     phase = "ready";
     dr();
   }
@@ -1032,7 +1040,7 @@
       D.groups = D.groups.filter((g) => g.id === "L");
       D.groups[0].card = TRYING(c.ask);
       D.ws.find((w) => w.name === "Your Tiri").badge = 0;
-      D.sb = { icon: "check", text: `Trying: ${c.ask}`, btns: [{ label: "Go Back", act: "back" }, { label: "Keep", act: "keep" }] };
+      D.sb = { icon: "check", text: t("Trying: %1", c.ask), btns: [{ label: t("Go Back"), act: "back" }, { label: t("Keep"), act: "keep" }] };
       dr();
     });
     flash(demo, c.shows);
@@ -1078,7 +1086,7 @@
         return `<span class="${cls}"><span class="ln">${num}</span>${hl(t)[0]}</span>`;
       })
       .join("");
-    D.groups.push({ id: "R", tabs: [{ id: "diff", icon: "diff", title: `${c.file} (this change)`, on: true, enter: true }], view: "code", crumbs: `Sources › TiriApp › ${c.file}`, code });
+    D.groups.push({ id: "R", tabs: [{ id: "diff", icon: "diff", title: t("%1 (this change)", c.file), on: true, enter: true }], view: "code", crumbs: `Sources › TiriApp › ${c.file}`, code });
     dr();
   }
   function againOpen() {
@@ -1114,7 +1122,7 @@
       const b = document.createElement("button");
       b.type = "button";
       b.className = "cp-item";
-      b.innerHTML = `<span class="q">“</span>${esc(c.ask)}`;
+      b.innerHTML = `<span class="q">${t("“")}</span>${esc(c.ask)}`;
       b.addEventListener("click", () => {
         if (["kept", "back", "plain"].includes(phase)) againOpen();
         pick(i);
@@ -1131,12 +1139,12 @@
       const c = CHANGES.find((x) => x.id === id);
       const li = document.createElement("li");
       if (id === fresh) li.className = "enter";
-      li.innerHTML = `<span class="sn-text">${esc(c.ask)}<small>Today, from the window above</small></span><button type="button" class="switch" role="switch" aria-checked="${kept.get(id)}" aria-label="${esc(c.ask)}"></button>`;
+      li.innerHTML = `<span class="sn-text">${esc(c.ask)}<small>${t("Today, from the window above")}</small></span><button type="button" class="switch" role="switch" aria-checked="${kept.get(id)}" aria-label="${esc(c.ask)}"></button>`;
       $(".switch", li).addEventListener("click", () => toggleKept(c));
       sentences.prepend(li);
     });
     const n = $$("li", sentences).length;
-    versionEl.textContent = `Tiri 0.5 with ${n} change${n === 1 ? "" : "s"}`;
+    versionEl.textContent = n === 1 ? t("Tiri 0.5 with 1 change") : t("Tiri 0.5 with %1 changes", n);
   }
   async function toggleKept(c) {
     if (["building", "ready", "trying"].includes(phase)) return;
@@ -1264,7 +1272,7 @@ export function backoffMs(attempt: number) {
   const peekwin = $("[data-peekwin]");
   const box = $("[data-peekbox]");
   const say = $("[data-peek-say]");
-  if (touch) say.textContent = "Tap the paths in the window. One of them is wrong.";
+  if (touch) say.textContent = t("Tap the paths in the window. One of them is wrong.");
   const sayDefault = say.textContent;
   let opener = null;
   function openPeek(btn, auto = false) {
@@ -1281,7 +1289,7 @@ export function backoffMs(attempt: number) {
         return n === f.mark ? `<span class="hl">${row}</span>` : `${row}\n`;
       })
       .join("");
-    say.textContent = f.wrong ? "That path was wrong as written. Tiri found src/upload/backoff.ts anyway." : sayDefault;
+    say.textContent = f.wrong ? t("That path was wrong as written. Tiri found src/upload/backoff.ts anyway.") : sayDefault;
     box.hidden = false;
     box.style.animation = "none";
     void box.offsetWidth;

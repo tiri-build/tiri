@@ -1,11 +1,13 @@
 // tiri.build: a static site served as a Cloudflare Worker with static assets.
 // Only /download/* runs src/worker.js, which counts downloads without keeping anything about who downloaded.
-// Deploy from this folder with: npx wrangler deploy
+// The Chinese pages (public/zh-hans, public/zh-hant) are written from the English ones by i18n/build.mjs.
+// Deploy from this folder with: npm run deploy
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "tiri-site",
   "compatibility_date": "2026-11-01",
   "main": "src/worker.js",
+  "build": { "command": "node i18n/build.mjs", "watch_dir": ["public", "i18n"] },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
