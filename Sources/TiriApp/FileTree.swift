@@ -197,6 +197,7 @@ final class FileTreeController: NSObject, NSOutlineViewDataSource, NSOutlineView
     private var fileChanges: [String: ChangeStatus] = [:]
     /// Each folder with something changed under it, and what to tint it.
     private var folderChanges: [String: ChangeStatus] = [:]
+    var refreshingFolders: Set<String> = []
 
     override init() {
         super.init()
@@ -963,6 +964,7 @@ final class FileTreeController: NSObject, NSOutlineViewDataSource, NSOutlineView
         menu.addItem(.separator())
         add(String(localized: "Add Folder to Workspace…"), #selector(menuAddFolder))
         if node?.isRoot == true { add(String(localized: "Remove Folder from Workspace"), #selector(menuRemoveFolder)) }
+        appendRefreshItem(to: menu, node: node)
         return menu
     }
 
