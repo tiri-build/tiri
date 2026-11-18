@@ -388,6 +388,10 @@ extension Conversations {
     }
 
     static func forEachPiece(of data: Data, agent: String, limit: Int, _ body: (Piece) -> Void) {
+        if agent == ImportedConversations.agent {
+            if let record = ImportedConversations.decode(data) { body(.you(String(record.markdown.prefix(limit)))) }
+            return
+        }
         guard let format = AgentCatalog.profile(id: agent)?.conversationFormat else { return }
         var size = 0
         data.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) in

@@ -176,6 +176,7 @@ final class AppModel {
     /// Each terminal's files when an agent was first seen in it, for an agent whose hooks only say when it stops.
     @ObservationIgnored var turnBaselines: [ItemID: (started: Date, trees: [String: String])] = [:]
     @ObservationIgnored var conversationsLoaded: [ConversationSummary]?
+    let conversationImport = ConversationImportDraft()
     @ObservationIgnored var conversationsLoading = false
     @ObservationIgnored var conversationIndex: ConversationIndex?
     @ObservationIgnored var conversationsIndexing = false

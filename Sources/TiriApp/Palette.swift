@@ -68,6 +68,7 @@ final class PaletteModel {
     var note: String?
     /// Asking for a change to Tiri: what that is, below the question.
     var showsChangePanel = false
+    var showsConversationImport = false
     /// A prompt's rows, which never come from what's typed.
     @ObservationIgnored private var promptRows: [Row] = []
     /// Above the field, for a question whose field already holds an answer.
@@ -666,6 +667,17 @@ struct PaletteView: View {
                     }
                 if palette.isIndexing {
                     ProgressView().controlSize(.small)
+                }
+                if palette.showsConversationImport {
+                    Button { model.openConversationImport() } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13, weight: .medium))
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Paste Markdown…")
+                    .accessibilityLabel("Paste Markdown…")
                 }
             }
             .padding(.horizontal, 14)

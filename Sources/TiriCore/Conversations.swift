@@ -273,6 +273,7 @@ public enum Conversations {
     /// The whole of it as a document: what was said, and what was done in a line each. Tool output is left
     /// out: it's most of the file and little of the conversation.
     public static func markdown(_ data: Data, summary: ConversationSummary, limit: Int = 1_500_000) -> String {
+        if summary.agent == ImportedConversations.agent { return ImportedConversations.decode(data)?.markdown ?? "" }
         guard let profile = AgentCatalog.profile(id: summary.agent), profile.conversationFormat != nil else { return "" }
         var pieces: [Piece] = []
         // Line by line in place, and the long lines of tool output aren't parsed at all.

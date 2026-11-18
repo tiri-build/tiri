@@ -6,7 +6,7 @@ import TiriCore
 
 /// Past conversations, read from the agents' own files, on this Mac or the server in front.
 extension AppModel {
-    private var conversationRoot: String {
+    var conversationRoot: String {
         (RemoteMirror.root as NSString).deletingLastPathComponent + "/Conversations"
     }
 
@@ -50,13 +50,13 @@ extension AppModel {
 
     private func lookForConversations(progress: (([ConversationSummary]) -> Void)?) async -> [ConversationSummary] {
         let onServer = active.remote
-        guard let listed = await runForConversations(Conversations.discoveryScript(limit: onServer == nil ? 1500 : 300), timeout: 60) else { return [] }
+        guard let listed = await runForConversations(Conversations.discoveryScript(limit: onServer == nil ? 1500 : 300), timeout: 60) else { return importedConversations }
         let found = Conversations.parseDiscovery(listed)
         let file = conversationIndexFile
         var index = (try? Data(contentsOf: URL(fileURLWithPath: file))).flatMap { try? JSONDecoder().decode([String: IndexEntry].self, from: $0) } ?? [:]
         let folders = active.folders.map { folder in onServer.flatMap { remote.existingConnection($0)?.map.remote(folder) } ?? folder }
         let current = { () -> [ConversationSummary] in
-            let all = found.compactMap { index[$0.file]?.summary }.sorted { $0.date > $1.date }
+            let all = (found.compactMap { index[$0.file]?.summary } + self.importedConversations).sorted { $0.date > $1.date }
             // This workspace's first, the newest of each.
             let isHere = { (conversation: ConversationSummary) -> Bool in
                 guard let cwd = conversation.cwd else { return false }
@@ -103,7 +103,7 @@ extension AppModel {
             let dates = Dictionary(found.map { ($0.file, $0.seconds) }, uniquingKeysWith: { first, _ in first })
             var changed = false
             for conversation in all {
-                let seconds = dates[conversation.file] ?? 0
+                let seconds = dates[conversation.file] ?? Int(conversation.date.timeIntervalSince1970)
                 guard known[conversation.file] != seconds else { continue }
                 autoreleasepool {
                     guard let data = try? Data(contentsOf: URL(fileURLWithPath: conversation.file), options: .mappedIfSafe) else { return }
@@ -153,7 +153,8 @@ extension AppModel {
     private func conversationRow(_ conversation: ConversationSummary, excerpt: String? = nil) -> PaletteModel.Row {
         let profile = AgentCatalog.profile(id: conversation.agent)
         let place = conversation.cwd.map { ($0 as NSString).lastPathComponent }
-        let detail = [profile?.title, place, RelativeTime.display(conversation.date)].compactMap { $0 }.joined(separator: " · ")
+        let source = conversation.agent == ImportedConversations.agent ? "Markdown" : profile?.title
+        let detail = [source, place, RelativeTime.display(conversation.date)].compactMap { $0 }.joined(separator: " · ")
         let title = conversationTitle(conversation)
         // Beneath the title: where a search matched, or else what you actually asked, in your own words.
         // Saying the title again wouldn't tell you anything.
@@ -406,16 +407,23 @@ extension AppModel {
                 }
             }
         }))
+        palette?.showsConversationImport = true
     }
 
     /// Those whose files hold these words.
     func conversationsSaying(_ words: String, among all: [ConversationSummary]) async -> [ConversationSummary] {
-        guard let data = await runForConversations(Conversations.searchScript(words: words, limit: 60)) else { return [] }
+        let imported = all.filter { conversation in
+            guard conversation.agent == ImportedConversations.agent,
+                  let data = try? Data(contentsOf: URL(fileURLWithPath: conversation.file)),
+                  let record = ImportedConversations.decode(data) else { return false }
+            return record.markdown.localizedCaseInsensitiveContains(words)
+        }
+        guard let data = await runForConversations(Conversations.searchScript(words: words, limit: 60)) else { return imported }
         let files = String(decoding: data, as: UTF8.self).split(whereSeparator: \.isNewline).compactMap { line -> String? in
             line.split(separator: "\t", maxSplits: 1).last.map(String.init)
         }
         let known = Dictionary(all.map { ($0.file, $0) }, uniquingKeysWith: { first, _ in first })
-        return files.compactMap { known[$0] }
+        return imported + files.compactMap { known[$0] }
     }
 
     private func fullText(of conversation: ConversationSummary) async -> Data? {

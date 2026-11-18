@@ -47,6 +47,7 @@ struct RootView: View {
             if let workspace = model.starter.editing { StartListSheet(workspace: workspace).environment(model) }
         }
         .onAppear { model.adoptOpenWindow(openWindow) }
+        .conversationImportSheet(model: model, window: windowID)
     }
 
     private var subtitle: String {

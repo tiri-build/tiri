@@ -372,6 +372,18 @@ public enum CLIParser {
             if args.first == "press" { return request("dev.toast", ["press": .string(args.dropFirst().joined(separator: " "))]) }
             return request("dev.toast")
 
+        case "dev-conversation-import":
+            var options = Options(args)
+            let file = try options.value("--file")
+            let picture = try options.value("--picture")
+            let save = options.flag("--save")
+            let cancel = options.flag("--cancel")
+            try options.finish()
+            var payload: [String: JSONValue] = ["save": .bool(save), "cancel": .bool(cancel)]
+            if let file { payload["file"] = .string(absolute(file, environment)) }
+            if let picture { payload["picture"] = .string(absolute(picture, environment)) }
+            return request("dev.conversation-import", payload)
+
         case "dev-palette":
             // What's asked in the palette, and answering it: text, a row's number, or --cancel. --query types without answering.
             var options = Options(args)

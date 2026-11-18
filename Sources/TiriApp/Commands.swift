@@ -1511,6 +1511,27 @@ enum ControlHandler {
             }
             return .object([:])
 
+        case "dev.conversation-import":
+            guard AppModel.isTestCopy else { throw ControlFailure("Only for a test copy.") }
+            if let path = request.args["picture"]?.stringValue {
+                try model.pictureConversationImport(at: path)
+                return .object(["path": .string(path)])
+            }
+            if model.conversationImport.window == nil { model.openConversationImport() }
+            if let file = request.args["file"]?.stringValue {
+                model.conversationImport.markdown = try String(contentsOfFile: file, encoding: .utf8)
+            }
+            if request.args["cancel"]?.boolValue == true {
+                model.conversationImport.window = nil
+                return .object([:])
+            }
+            if request.args["save"]?.boolValue == true {
+                guard let summary = model.saveConversationImport() else { throw ControlFailure(model.conversationImport.problem ?? "No Markdown to import.") }
+                return .object(["session": .string(summary.session), "title": .string(summary.title)])
+            }
+            return .object(["title": .string(ImportedConversations.title(for: model.conversationImport.markdown)),
+                            "canSave": .bool(model.conversationImport.canSave)])
+
         case "dev.palette":
             guard AppModel.isTestCopy else { throw ControlFailure("Only for a test copy.") }
             guard let palette = model.palette else { throw ControlFailure("No palette is open.") }
