@@ -1886,6 +1886,7 @@ enum ControlHandler {
             return .object(object)
 
         case "tree":
+            if let result = try model.fileTree.refreshMenuForTest(request) { return result }
             // A test copy can ask for only the rows on screen.
             if AppModel.isTestCopy, request.args["onScreen"]?.boolValue == true { return .array(model.fileTree.rowsOnScreen().map(JSONValue.string)) }
             return .array(model.fileTree.visibleRows().map(JSONValue.string))

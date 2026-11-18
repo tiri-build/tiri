@@ -1030,10 +1030,10 @@ public final class RemoteConnection: @unchecked Sendable {
     private func helper(_ bin: String) -> String { ShellQuote.quote(bin + "/tiri-remote") }
 
     /// Looks at everything again. After connecting, and whenever the watcher lost track.
-    public func rescan(then done: (@Sendable () -> Void)? = nil) {
+    public func rescan(folders: [String]? = nil, then done: (@Sendable () -> Void)? = nil) {
         mirrorQueue.async { [self] in
             defer { done?() }
-            for root in roots { scan(root: root, depth: 0, removing: true) }
+            for root in folders ?? roots { scan(root: root, depth: 0, removing: true) }
         }
     }
 
