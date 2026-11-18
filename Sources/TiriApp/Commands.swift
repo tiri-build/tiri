@@ -1182,6 +1182,12 @@ enum ControlHandler {
                 guard let item = value ?? yours.draft?.item, let terminal = model.existingController(for: item) as? TerminalController else { throw ControlFailure("No change is being made.") }
                 if request.args["action"]?.stringValue == "press-notice" { terminal.pressNotice() }
                 return .object(["notice": .string(terminal.noticeText ?? ""), "item": .string(item)])
+            case "delete-record":
+                guard let change = yours.changes.first(where: { $0.id == value }) else { throw ControlFailure("No such change.") }
+                yours.deleteChangeRecord(change)
+            case "listed-records":
+                return .array(yours.listedChanges.map { .string($0.id) })
+            case "reload-records": yours.recordVisibility = try ChangeRecordVisibility()
             default: throw ControlFailure("Unknown action.")
             }
             yours.refresh()

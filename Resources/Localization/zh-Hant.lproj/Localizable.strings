@@ -2011,3 +2011,8 @@
 "Fold the notes already sent" = "收合已傳送的註記";
 "Show the notes already sent" = "顯示已傳送的註記";
 "Go to where this note was made" = "回到做這則註記的地方";
+"More actions" = "更多操作";
+"Hide Record" = "隱藏記錄";
+"No change records." = "沒有更改記錄。";
+"Couldn't hide this record" = "無法隱藏此記錄";
+"Hide this record from the list. The change keeps its current state." = "從列表中隱藏此記錄。更改維持目前狀態。";

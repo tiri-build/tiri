@@ -122,8 +122,12 @@ struct YourTiriPane: View {
             // An update's copy goes in with its own one button, with the app it belongs to.
             if let ready = yours.ready, ready.kind != .update { ReadyRow(copy: ready) }
             if let draft = yours.draft { BeingMadeRow(draft: draft) }
-            if yours.changes.isEmpty {
-                EmptyYourTiri()
+            if yours.listedChanges.isEmpty {
+                if yours.changes.isEmpty {
+                    EmptyYourTiri()
+                } else {
+                    Text("No change records.").foregroundStyle(.secondary)
+                }
                 HStack(spacing: 10) {
                     if yours.entriesAreOn {
                         Button("Change Tiri…") { yours.beginChange(surface: nil) }
@@ -146,7 +150,7 @@ struct YourTiriPane: View {
                 } content: {
                     SettingsCard {
                         // One waiting to be tried is the row above, and isn't on yet.
-                        ForEach(Array(yours.changes.reversed().filter { $0.id != yours.ready?.change }.enumerated()), id: \.element.id) { index, change in
+                        ForEach(Array(yours.listedChanges.reversed().filter { $0.id != yours.ready?.change }.enumerated()), id: \.element.id) { index, change in
                             if index > 0 { SettingsRowDivider() }
                             PersonalChangeRow(change: change)
                         }
@@ -241,7 +245,7 @@ private struct PersonalChangeRow: View {
                 .menuIndicator(.hidden)
                 .fixedSize()
                 .foregroundStyle(.secondary)
-                .help(change.needsRedo ? String(localized: "See What Changed") : String(localized: "Share, See What Changed"))
+                .help("More actions")
                 .accessibilityLabel("More for \(title)")
                 if isBuilding {
                     ProgressView().controlSize(.small).frame(width: 38)
@@ -278,6 +282,7 @@ private struct PersonalChangeRow: View {
             Button("Share…") { yours.chooseWhereToShare(change) }
             Button("See What Changed") { yours.showChanges(of: change) }
         }
+        DeleteChangeRecordButton(change: change)
     }
 }
 

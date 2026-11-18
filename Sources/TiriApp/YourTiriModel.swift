@@ -34,6 +34,7 @@ struct ChangeMark {
     private(set) var ready: ReadyCopy?
     private(set) var draft: ChangeDraft?
     private(set) var changes: [PersonalChange] = []
+    var recordVisibility = try? ChangeRecordVisibility()
     private(set) var update: UpdateStatus?
     /// Changes being turned on or off, whose copy is building.
     private(set) var toggling: Set<String> = []
