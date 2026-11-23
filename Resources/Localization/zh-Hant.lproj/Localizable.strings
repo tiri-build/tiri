@@ -2013,3 +2013,7 @@
 "Go to where this note was made" = "回到做這則註記的地方";
 "Refresh" = "重新整理";
 "Refreshing…" = "正在重新整理…";
+"Only part of %@ could be refreshed" = "「%@」只重新整理了一部分";
+"Files removed on the server may still be listed." = "伺服器上已刪除的檔案可能仍會列出。";
+"Couldn't refresh %@" = "無法重新整理「%@」";
+"%@ didn't list it." = "%@ 沒有列出其內容。";
