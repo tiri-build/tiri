@@ -153,7 +153,7 @@ import Testing
 @Suite struct AgentSettingsTests {
     @Test func theMenuAndResumeComeFromTheCatalog() {
         let settings = TiriSettings()
-        #expect(settings.terminalPresets.map(\.command) == ["", "claude", "codex", "grok"])
+        #expect(settings.terminalPresets.map(\.command) == ["", "claude", "codex", "grok", "agy"])
         #expect(settings.terminalResume["grok"] == "grok --continue")
     }
 
@@ -186,7 +186,7 @@ import Testing
 
     @Test func aNewAgentJoinsAMenuThatWasListedInFull() {
         let result = AgentCatalog.adopting(into: oldMenu, resume: oldResume, known: AgentCatalog.alwaysKnown)
-        #expect(result.presets.map(\.command) == ["", "claude", "codex", "grok"])
+        #expect(result.presets.map(\.command) == ["", "claude", "codex", "grok", "agy"])
         #expect(result.known.contains("grok"))
     }
 
@@ -198,12 +198,12 @@ import Testing
 
     @Test func anAgentYouAlreadyAddedIsNotAddedAgain() {
         let menu = oldMenu + [TerminalPreset(name: "My Grok", command: "grok --model fast")]
-        #expect(AgentCatalog.adopting(into: menu, resume: oldResume, known: AgentCatalog.alwaysKnown).presets == menu)
+        #expect(AgentCatalog.adopting(into: menu, resume: oldResume, known: AgentCatalog.alwaysKnown.union(["agy"])).presets == menu)
     }
 
     @Test func aMenuWithoutAnyAgentsStillHearsOfANewOne() {
         let menu = [TerminalPreset(name: "Shell", command: "")]
-        #expect(AgentCatalog.adopting(into: menu, resume: oldResume, known: AgentCatalog.alwaysKnown).presets.map(\.command) == ["", "grok"])
+        #expect(AgentCatalog.adopting(into: menu, resume: oldResume, known: AgentCatalog.alwaysKnown).presets.map(\.command) == ["", "grok", "agy"])
     }
 }
 

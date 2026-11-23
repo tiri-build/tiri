@@ -64,7 +64,11 @@ extension AppModel {
             }
             return all.filter(isHere) + all.filter { !isHere($0) }
         }
-        let unread = found.filter { index[$0.file]?.seconds != $0.seconds }.sorted { $0.seconds > $1.seconds }
+        // agy's summary database can acquire the workspace after its transcript stops changing.
+        let unread = found.filter { item in
+            let cached = index[item.file]
+            return cached?.seconds != item.seconds || (item.agent == "agy" && cached?.summary?.cwd == nil)
+        }.sorted { $0.seconds > $1.seconds }
         progress?(current())
         for start in stride(from: 0, to: unread.count, by: 60) {
             let batch = Array(unread[start..<min(start + 60, unread.count)])

@@ -178,6 +178,7 @@ public enum AgentCatalog {
             nothingToResume: ["session get failed: 404"],
             conversationFiles: "sessions/*/*/chat_history.jsonl", conversationFormat: .grok,
             conversationStart: "\"type\": ?\"user\""),
+        Antigravity.profile,
     ]
 
     /// Whether a resume that just failed said there's nothing to come back to. An agent with no entry
@@ -261,7 +262,7 @@ public enum AgentCatalog {
         var presets = presets
         var resume = resume
         for profile in all where !known.contains(profile.id) {
-            if !presets.contains(where: { $0.command.split(separator: " ").first.map(String.init) == profile.command }) {
+            if !presets.contains(where: { AgentRoster.tool(of: $0.command) == profile.command }) {
                 presets.append(TerminalPreset(name: profile.title, command: profile.command))
             }
             if let command = profile.continueCommand, let name = profile.executableNames.sorted().first, resume[name] == nil {
