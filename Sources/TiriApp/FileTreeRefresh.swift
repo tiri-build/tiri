@@ -8,6 +8,23 @@ extension FileTreeController {
         return node.isDirectory ? [node.path] : []
     }
 
+    /// The folder and every folder showing its contents beneath it, parents first.
+    private func listedFolders(under folder: String) -> [String] {
+        var found: [String] = []
+        func walk(_ node: FileNode) {
+            guard node.isDirectory, node.children != nil else { return }
+            found.append(node.path)
+            node.children?.forEach(walk)
+        }
+        func find(_ node: FileNode) {
+            if node.path == folder { return walk(node) }
+            guard folder.hasPrefix(node.path + "/") else { return }
+            node.children?.forEach(find)
+        }
+        roots.forEach(find)
+        return found.isEmpty ? [folder] : found
+    }
+
     func appendRefreshItem(to menu: NSMenu, node: FileNode?) {
         // Only a server's listing can fall behind: local folders are watched directly.
         let folders = refreshFolders(for: node).filter { RemoteRegistry.shared.isRemote($0) }
@@ -27,7 +44,7 @@ extension FileTreeController {
         let folders = refreshFolders(for: sender.representedObject as? FileNode).filter { RemoteRegistry.shared.isRemote($0) }
         for folder in folders where !refreshingFolders.contains(folder) {
             guard let connection = RemoteRegistry.shared.connection(forLocal: folder),
-                  let remote = connection.map.remote(folder) else {
+                  connection.map.remote(folder) != nil else {
                 reload(under: [folder])
                 continue
             }
@@ -37,13 +54,26 @@ extension FileTreeController {
                 continue
             }
             refreshingFolders.insert(folder)
-            // Listing the local mirror alone cannot discover a missed server event. Wait for the
-            // authoritative scan, including removals, before reusing the tree's expansion-preserving reload.
-            connection.rescan(folders: [remote]) { [weak self] in
+            // Listing the local mirror alone cannot discover a missed server event. Ask the server
+            // about each folder that's showing, removals included, before reusing the tree's
+            // expansion-preserving reload. What isn't showing is left for when it's opened and refreshed.
+            let name = (folder as NSString).lastPathComponent
+            connection.relist(folders: listedFolders(under: folder).compactMap(connection.map.remote)) { [weak self] outcome in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.refreshingFolders.remove(folder)
                     self.reload(under: [folder])
+                    switch outcome {
+                    case .complete: break
+                    case .partial:
+                        self.model?.showToast(title: String(localized: "Only part of \(name) could be refreshed"),
+                                              detail: String(localized: "Files removed on the server may still be listed."),
+                                              symbol: "exclamationmark.triangle", tint: .orange)
+                    case .failed:
+                        self.model?.showToast(title: String(localized: "Couldn't refresh \(name)"),
+                                              detail: String(localized: "\(SSHConfigFile.displayName(of: connection.destination)) didn't list it."),
+                                              symbol: "exclamationmark.triangle", tint: .orange)
+                    }
                 }
             }
         }

@@ -1030,15 +1030,51 @@ public final class RemoteConnection: @unchecked Sendable {
     private func helper(_ bin: String) -> String { ShellQuote.quote(bin + "/tiri-remote") }
 
     /// Looks at everything again. After connecting, and whenever the watcher lost track.
-    public func rescan(folders: [String]? = nil, then done: (@Sendable () -> Void)? = nil) {
+    public func rescan(then done: (@Sendable () -> Void)? = nil) {
         mirrorQueue.async { [self] in
             defer { done?() }
-            for root in folders ?? roots { scan(root: root, depth: 0, removing: true) }
+            for root in roots { scan(root: root, depth: 0, removing: true) }
+        }
+    }
+
+    /// How far a look at the server got.
+    public enum ScanOutcome: Int, Sendable, Comparable {
+        case complete
+        /// Some of it couldn't be read, so nothing was taken away here.
+        case partial
+        /// The server didn't answer, or the folder isn't there.
+        case failed
+
+        public static func < (a: ScanOutcome, b: ScanOutcome) -> Bool { a.rawValue < b.rawValue }
+    }
+
+    /// Lists each of these folders again, one level each and parents before what's in them, so the
+    /// cost is what's showing rather than everything beneath. A folder that turns up new is looked
+    /// through in full, as the first scan would have. `done` hears the worst that happened.
+    public func relist(folders: [String], then done: @escaping @Sendable (ScanOutcome) -> Void) {
+        mirrorQueue.async { [self] in
+            var worst = ScanOutcome.complete
+            let manager = FileManager.default
+            for (index, folder) in folders.enumerated() {
+                let local = map.local(folder)
+                // Listing a folder above it has just found this one gone.
+                if index > 0, !manager.fileExists(atPath: local) { continue }
+                let before = Set((try? manager.contentsOfDirectory(atPath: local)) ?? [])
+                worst = max(worst, scan(root: folder, depth: 1, removing: true))
+                for name in (try? manager.contentsOfDirectory(atPath: local)) ?? [] where !before.contains(name) {
+                    var isFolder: ObjCBool = false
+                    guard manager.fileExists(atPath: local + "/" + name, isDirectory: &isFolder), isFolder.boolValue,
+                          let remote = map.remote(local + "/" + name) else { continue }
+                    worst = max(worst, scan(root: remote, depth: 0, removing: false))
+                }
+            }
+            done(worst)
         }
     }
 
     /// Runs on mirrorQueue.
-    private func scan(root: String, depth: Int, removing: Bool) {
+    @discardableResult
+    private func scan(root: String, depth: Int, removing: Bool) -> ScanOutcome {
         let script: String
         if let bin = binDirectory {
             script = "\(helper(bin)) scan \(ShellQuote.quote(root)) --exclude \(ShellQuote.quote(excludeArgument))" + (depth > 0 ? " --depth \(depth)" : "")
@@ -1052,7 +1088,7 @@ public final class RemoteConnection: @unchecked Sendable {
             find \(quotedRoot) \(limit)\\( \(prune) \\) -prune -o ! -type d -exec sh -c 'for p; do printf "f\\t0\\t-1\\t%s\\0" "$p"; done' _ {} +
             """
         }
-        guard let result = run(script, timeout: 120), result.succeeded || !result.output.isEmpty else { return }
+        guard let result = run(script, timeout: 120), result.succeeded || !result.output.isEmpty else { return .failed }
         var reader = RemoteRecordReader()
         var found: [RemoteRecord] = []
         var partial = !result.succeeded
@@ -1063,23 +1099,31 @@ public final class RemoteConnection: @unchecked Sendable {
             }
         }
         // The folder itself seems to be gone, which is more often a blip than the truth.
-        if let first = found.first, first.path == root, first.kind == .gone { return }
+        if let first = found.first, first.path == root, first.kind == .gone { return .failed }
         // Only a complete answer says what isn't there. A timeout or an unreadable folder doesn't.
-        apply(found, root: root, removing: removing && !partial)
+        apply(found, root: root, removing: removing && !partial, shallow: depth == 1)
+        return partial ? .partial : .complete
     }
 
-    /// Makes the copy of `root` match a listing. Runs on mirrorQueue.
-    private func apply(_ listing: [RemoteRecord], root: String, removing: Bool) {
+    /// Makes the copy of `root` match a listing. A shallow listing is of the folder alone, so only
+    /// what's directly in it can be found missing. Runs on mirrorQueue.
+    private func apply(_ listing: [RemoteRecord], root: String, removing: Bool, shallow: Bool = false) {
         let manager = FileManager.default
         let open = openFiles?() ?? []
         let localRoot = map.local(root)
         var seen = Set<String>()
         seen.reserveCapacity(listing.count)
         var existing = Set<String>()
-        if removing, let walker = manager.enumerator(atPath: localRoot) {
-            while let name = walker.nextObject() as? String { existing.insert(localRoot + "/" + name) }
+        let rootPrefix = root == "/" ? "/" : root + "/"
+        if removing, shallow {
+            for name in (try? manager.contentsOfDirectory(atPath: localRoot)) ?? [] { existing.insert(localRoot + "/" + name) }
+            foldedNames = foldedNames.filter { !($0.value.hasPrefix(rootPrefix) && !$0.value.dropFirst(rootPrefix.count).contains("/")) }
+        } else if removing {
+            if let walker = manager.enumerator(atPath: localRoot) {
+                while let name = walker.nextObject() as? String { existing.insert(localRoot + "/" + name) }
+            }
+            foldedNames = foldedNames.filter { !$0.value.hasPrefix(rootPrefix) }
         }
-        if removing { foldedNames = foldedNames.filter { !$0.value.hasPrefix(root == "/" ? "/" : root + "/") } }
         var usable: [RemoteRecord] = []
         usable.reserveCapacity(listing.count)
         for record in listing {
@@ -1102,6 +1146,12 @@ public final class RemoteConnection: @unchecked Sendable {
         for local in existing.subtracting(seen).sorted(by: { $0.count > $1.count }) {
             guard let remote = map.remote(local), !holdsPendingSave(remote), !onDemand.contains(remote), !open.contains(local) else { continue }
             lock.withLock { records[remote] = nil }
+            if shallow {
+                // What was in a folder goes with it, and a deeper listing isn't there to say so.
+                let within = remote + "/"
+                lock.withLock { records = records.filter { !$0.key.hasPrefix(within) } }
+                foldedNames = foldedNames.filter { !$0.value.hasPrefix(within) }
+            }
             try? manager.removeItem(atPath: local)
         }
     }
