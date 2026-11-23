@@ -36,6 +36,7 @@ public enum ConversationFormat: Sendable {
     case codex
     /// One message per line, with `type` and `content`, in a folder named after the session: Grok.
     case grok
+    case antigravity
 }
 
 public enum Conversations {
@@ -81,6 +82,10 @@ public enum Conversations {
     public static func startsScript(_ files: [Found], maximumBytes: Int) -> String {
         var script = ""
         for file in files {
+            if file.agent == Antigravity.profile.id {
+                script += Antigravity.startScript(file, maximumBytes: maximumBytes)
+                continue
+            }
             guard let start = AgentCatalog.profile(id: file.agent)?.conversationStart else { continue }
             let path = ShellQuote.quote(file.file)
             script += "printf '\\036%s\\t%s\\t%s\\n' \(file.agent) \(file.seconds) \(path); grep -a -m 30 -E \(ShellQuote.quote(start)) \(path) | head -c \(maximumBytes); printf '\\n'\n"
@@ -153,11 +158,19 @@ public enum Conversations {
                 } else if title == nil, let text = codexPrompt(object) {
                     title = text
                 }
+            case .antigravity:
+                session = Antigravity.session(file)
+                if let uri = object["workspace"] as? String, let url = URL(string: uri), url.isFileURL {
+                    cwd = url.path
+                }
+                if let name = object["title"] as? String, !name.isEmpty { title = name }
+                if title == nil { title = Antigravity.prompt(object).flatMap(AgentHookEvent.promptLine) }
             case .grok:
                 if title == nil, object["type"] as? String == "user", let text = realPrompt(contentText(object["content"])) { title = text }
             }
             if title != nil, session != nil || format == .grok, cwd != nil || format == .grok { break }
         }
+        if format == .antigravity && session == nil { return nil }
         if format == .grok {
             let folder = (file as NSString).deletingLastPathComponent
             session = (folder as NSString).lastPathComponent
@@ -259,6 +272,7 @@ public enum Conversations {
         case .claude: claudePieces(object)
         case .codex: codexPieces(object)
         case .grok: grokPieces(object)
+        case .antigravity: Antigravity.pieces(object)
         }
     }
 

@@ -158,13 +158,15 @@ public struct TiriSettings: Equatable, Sendable {
         { "name": "Shell", "command": "" },
         { "name": "Claude Code", "command": "claude" },
         { "name": "Codex", "command": "codex" },
-        { "name": "Grok", "command": "grok" }
+        { "name": "Grok", "command": "grok" },
+        { "name": "Antigravity", "command": "agy" }
       ],
       // How agent terminals come back after a relaunch. Keyed by tool name.
       "terminal.resume": {
         "claude": "claude --continue",
         "codex": "codex resume --last",
-        "grok": "grok --continue"
+        "grok": "grok --continue",
+        "agy": "agy --continue"
       },
       "terminal.restoreWithResume": true,
       // Terminals keep running when Tiri quits, and it comes back to them.

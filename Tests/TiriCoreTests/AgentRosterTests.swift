@@ -10,14 +10,14 @@ import Testing
     private var all: [TerminalPreset] { [shell, claude, codex, grok] }
 
     @Test func listsAgentsAndNotTheShell() {
-        #expect(AgentRoster.entries(all).map(\.id) == ["claude", "codex", "grok"])
-        #expect(AgentRoster.entries(all).allSatisfy { $0.isEnabled })
+        #expect(AgentRoster.entries(all).map(\.id) == ["claude", "codex", "grok", "agy"])
+        #expect(AgentRoster.entries(all).filter(\.isEnabled).map(\.id) == ["claude", "codex", "grok"])
     }
 
     @Test func anAgentMissingFromTheListShowsAsOff() {
         let entries = AgentRoster.entries([shell, claude])
-        #expect(entries.map(\.id) == ["claude", "codex", "grok"])
-        #expect(entries.map(\.isEnabled) == [true, false, false])
+        #expect(entries.map(\.id) == ["claude", "codex", "grok", "agy"])
+        #expect(entries.map(\.isEnabled) == [true, false, false, false])
     }
 
     @Test func keepsYourCommandAndNameForAKnownAgent() throws {
@@ -110,7 +110,7 @@ import Testing
 
     @Test func aNewAgentDoesNotComeBackAfterBeingTurnedOff() throws {
         let off = try AgentRoster.setEnabled(false, "grok", in: all)
-        let adopted = AgentCatalog.adopting(into: off, resume: [:], known: AgentCatalog.alwaysKnown)
+        let adopted = AgentCatalog.adopting(into: off, resume: [:], known: AgentCatalog.alwaysKnown.union(["agy"]))
         #expect(adopted.presets == off)
     }
 
